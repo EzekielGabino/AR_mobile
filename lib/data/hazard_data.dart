@@ -1,0 +1,118 @@
+import 'package:flutter/material.dart';
+import '../models/safety_item.dart';
+import '../theme/app_theme.dart';
+
+final List<SafetyItem> kHazardSymbols = [
+  SafetyItem(
+    id: 'hz_flammable',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS02',
+    title: 'Flammable',
+    shortDescription: 'Catches fire easily near heat, spark, or flame.',
+    detail:
+        'Substance can easily catch fire when exposed to heat, spark, or open flame.',
+    examples: 'Ethanol, acetone, hydrogen gas',
+    noteLabel: 'Precaution',
+    note:
+        'Keep away from heat sources and open flames; store in a cool, ventilated area.',
+    icon: Icons.local_fire_department,
+    accentColor: SafetyColors.orange,
+  ),
+  SafetyItem(
+    id: 'hz_corrosive',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS05',
+    title: 'Corrosive',
+    shortDescription: 'Can destroy living tissue or corrode metal on contact.',
+    detail: 'Can destroy living tissue or corrode metal on contact.',
+    examples: 'Sulfuric acid, sodium hydroxide',
+    noteLabel: 'Precaution',
+    note:
+        'Wear gloves and goggles; handle over a sink or tray, never with bare skin.',
+    icon: Icons.science,
+    accentColor: SafetyColors.blue,
+  ),
+  SafetyItem(
+    id: 'hz_toxic',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS06',
+    title: 'Toxic',
+    shortDescription:
+        'Can cause death or serious harm if swallowed, inhaled, or absorbed.',
+    detail:
+        'Can cause death or serious harm if swallowed, inhaled, or absorbed through skin.',
+    examples: 'Methanol, mercury compounds',
+    noteLabel: 'Precaution',
+    note: 'Use inside a fume hood; avoid all skin and respiratory contact.',
+    icon: Icons.dangerous,
+    accentColor: SafetyColors.black,
+  ),
+  SafetyItem(
+    id: 'hz_oxidizer',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS03',
+    title: 'Oxidizer',
+    shortDescription:
+        'Intensifies fire by supplying oxygen to fuel combustion.',
+    detail: 'Can intensify fire by supplying oxygen to fuel combustion.',
+    examples: 'Hydrogen peroxide, potassium permanganate',
+    noteLabel: 'Precaution',
+    note: 'Store away from flammable materials and reducing agents.',
+    icon: Icons.whatshot,
+    accentColor: SafetyColors.yellow,
+  ),
+  SafetyItem(
+    id: 'hz_explosive',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS01',
+    title: 'Explosive',
+    shortDescription: 'Can explode from heat, shock, or friction.',
+    detail: 'Can explode when exposed to heat, shock, or friction.',
+    examples: 'Picric acid, excess ammonium nitrate',
+    noteLabel: 'Precaution',
+    note: 'Handle only in minimal quantities under direct teacher supervision.',
+    icon: Icons.warning_amber,
+    accentColor: SafetyColors.black,
+  ),
+  SafetyItem(
+    id: 'hz_health',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS08',
+    title: 'Health Hazard',
+    shortDescription: 'May cause long-term health effects like organ damage.',
+    detail:
+        'May cause long-term health effects such as organ damage or respiratory sensitization.',
+    examples: 'Chloroform, benzene',
+    noteLabel: 'Precaution',
+    note: 'Use with proper ventilation; avoid repeated or prolonged exposure.',
+    icon: Icons.coronavirus,
+    accentColor: SafetyColors.purple,
+  ),
+  SafetyItem(
+    id: 'hz_gas',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS04',
+    title: 'Compressed Gas',
+    shortDescription: 'Contains gas under pressure; may rupture if heated.',
+    detail: 'Contains gas under pressure; container may rupture if heated.',
+    examples: 'Oxygen tank, propane cylinder',
+    noteLabel: 'Precaution',
+    note: 'Store upright, secured, and away from direct heat or sunlight.',
+    icon: Icons.propane_tank,
+    accentColor: SafetyColors.blue,
+  ),
+  SafetyItem(
+    id: 'hz_eco',
+    group: SafetyGroup.hazardSymbol,
+    code: 'GHS09',
+    title: 'Environmental Hazard',
+    shortDescription: 'Toxic to aquatic life or the surrounding environment.',
+    detail: 'Toxic to aquatic life or the surrounding environment.',
+    examples: 'Heavy metal salts, pesticides',
+    noteLabel: 'Precaution',
+    note:
+        'Never pour down the drain; dispose of through proper waste channels.',
+    icon: Icons.eco,
+    accentColor: SafetyColors.green,
+  ),
+];

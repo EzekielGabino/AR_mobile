@@ -1,0 +1,62 @@
+{
+  "experiments": [
+    {
+      "id": "forge2d-test",
+      "title": "Forge2D Physics Test",
+      "description": "Scratch experiment for tuning the Forge2D reaction layer — not a real chemistry experiment, just a rig for testing the physics overlays before touching the real Firestore-backed screen.",
+      "imagePath": null,
+      "materials": [],
+      "safetyPrecautions": [
+        "This is a test rig — no real chemicals involved."
+      ],
+      "steps": [
+        {
+          "order": 0,
+          "type": "align",
+          "element": "beaker",
+          "instruction": "Frame the beaker (or tap \"I don't have this equipment\")."
+        },
+        {
+          "order": 1,
+          "type": "addElement",
+          "element": "water",
+          "label": "Water",
+          "unit": "tbsp",
+          "targetAmount": 3,
+          "amountOptions": [1, 2, 3],
+          "color": "#4FC3F7",
+          "elementState": "liquid",
+          "instruction": "Add water to establish a fill level."
+        },
+        {
+          "order": 2,
+          "type": "addElement",
+          "element": "baking_soda",
+          "label": "Baking Soda",
+          "unit": "tsp",
+          "targetAmount": 1,
+          "amountOptions": [1, 2],
+          "color": "#EEEEEE",
+          "elementState": "solid",
+          "instruction": "Add baking soda — watch it drop and pile via Forge2D, not just tint the water."
+        },
+        {
+          "order": 3,
+          "type": "trigger",
+          "instruction": "Trigger the reaction to see the eruption physics layer.",
+          "reactionType": "foamEruption",
+          "reactionColor": "#FFEB3B",
+          "reactionDurationMs": 4000,
+          "foamIntensity": 0.9
+        },
+        {
+          "order": 4,
+          "type": "explanation",
+          "explanation": "The baking soda grains piled at the bottom used the same Forge2D world as the eruption burst — both are real rigid-body physics, not scripted CustomPainter animation.",
+          "realWorldConnection": "In a real lab, undissolved solid settling before a reaction kicks off is a genuine visual cue students learn to read."
+        }
+      ],
+      "quiz": { "questions": [] }
+    }
+  ]
+}
