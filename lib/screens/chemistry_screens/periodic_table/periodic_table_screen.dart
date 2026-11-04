@@ -3,6 +3,7 @@ import 'package:scilense_ar_mobile/components/periodic_table/element_tile.dart';
 import 'package:scilense_ar_mobile/components/periodic_table/periodic_table_legend.dart';
 import 'package:scilense_ar_mobile/models/element.dart';
 import 'package:scilense_ar_mobile/services/periodic_table_service.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 class PeriodicTableScreen extends StatefulWidget {
   const PeriodicTableScreen({super.key});
@@ -104,15 +105,11 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
           width: 8,
           height: 8,
           decoration: const BoxDecoration(
-            color: Color(0xFF1E88E5),
+            color: SafetyColors.paperLine,
             shape: BoxShape.circle,
           ),
         ),
-        Container(
-          width: 12,
-          height: 1.5,
-          color: const Color(0xFF1E88E5).withOpacity(0.5),
-        ),
+        Container(width: 12, height: 1.5, color: SafetyColors.paperLine),
         const SizedBox(width: 6),
         Expanded(
           child: RichText(
@@ -122,14 +119,18 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
               children: [
                 TextSpan(
                   text: "$label: ",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D47A1),
+                  style: SafetyTextStyles.tileTitleLight.copyWith(
+                    fontSize: 14,
+                    fontWeight: .bold,
                   ),
                 ),
                 TextSpan(
                   text: value,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  style: SafetyTextStyles.tileTitleLight.copyWith(
+                    fontSize: 14,
+                    color: SafetyColors.gray,
+                    fontWeight: .w500,
+                  ),
                 ),
               ],
             ),
@@ -145,23 +146,17 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
     const double labelWidth = 32.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F7FF),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
           "Periodic Table",
           style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.primaryDark,
         elevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+          decoration: const BoxDecoration(gradient: AppColors.headerGradient),
         ),
       ),
 
@@ -184,16 +179,19 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primaryLight.withValues(alpha: 0.25),
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0D47A1).withOpacity(0.08),
+                          color: const Color(0xFF0D47A1).withValues(alpha: 0.2),
                           blurRadius: 15,
                           offset: const Offset(0, 6),
                         ),
                       ],
                     ),
                     child: Card(
-                      color: Colors.white,
+                      color: AppColors.primary,
                       elevation: 0,
                       clipBehavior: Clip.antiAlias,
                       shape: RoundedRectangleBorder(
@@ -210,11 +208,7 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                           children: [
                             const Text(
                               "Element Guide",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0D47A1),
-                              ),
+                              style: SafetyTextStyles.sectionTitleLight,
                             ),
                             const SizedBox(height: 16),
                             // Diagram Container
@@ -341,6 +335,9 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primaryLight.withValues(alpha: 0.25),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF0D47A1).withOpacity(0.08),
@@ -350,7 +347,7 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                       ],
                     ),
                     child: Card(
-                      color: Colors.white,
+                      color: AppColors.accent,
                       elevation: 0,
                       clipBehavior: Clip.antiAlias,
                       shape: RoundedRectangleBorder(
@@ -368,11 +365,7 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                               horizontal: 16,
                             ),
                             decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                              gradient: AppColors.headerGradient,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -528,7 +521,7 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 13,
-                                                    color: Color(0xFF0D47A1),
+                                                    color: AppColors.accentSoft,
                                                   ),
                                                 ),
                                               ),
@@ -562,7 +555,7 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 13,
-                                                    color: Color(0xFF0D47A1),
+                                                    color: AppColors.accentSoft,
                                                   ),
                                                 ),
                                               ),

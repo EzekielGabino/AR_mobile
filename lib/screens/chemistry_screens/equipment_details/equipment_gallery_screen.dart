@@ -107,16 +107,35 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
       child: TextField(
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+        cursorColor: AppColors.accent,
         decoration: InputDecoration(
           hintText: 'Search equipment...',
-          hintStyle: const TextStyle(color: AppColors.textSecondary),
-          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary.withValues(alpha: 0.85),
+          ),
+          prefixIcon: const Icon(Icons.search, color: AppColors.primaryLight),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppColors.cardBackground,
           contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(
+              color: AppColors.primaryLight.withValues(alpha: 0.4),
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: AppColors.primaryLight.withValues(alpha: 0.4),
+            ),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            borderSide: BorderSide(color: AppColors.primaryLight, width: 1.5),
           ),
         ),
         onChanged: (value) => setState(() => _query = value),
@@ -138,26 +157,35 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
           final icon = category == 'All'
               ? Icons.apps_rounded
               : CategoryStyle.iconFor(category);
+          final labelColor =
+              selected ? Colors.white : AppColors.textPrimary;
+          final iconColor =
+              selected ? Colors.white : AppColors.primary;
           return ChoiceChip(
-            avatar: Icon(
-              icon,
-              size: 18,
-              color: selected ? Colors.white : AppColors.primary,
-            ),
-            label: Text(category),
+            showCheckmark: false,
             selected: selected,
             onSelected: (_) => setState(() => _selectedCategory = category),
-            selectedColor: AppColors.primary,
-            labelStyle: TextStyle(
-              color: selected ? Colors.white : AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
+            // M3: explicit state colors (old selectedColor/backgroundColor are ignored)
+            color: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary;
+              }
+              return Colors.white;
+            }),
+            side: BorderSide(
+              color: selected
+                  ? AppColors.primaryLight
+                  : AppColors.primaryLight.withValues(alpha: 0.7),
             ),
-            backgroundColor: Colors.white,
-            elevation: selected ? 2 : 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: selected ? AppColors.primary : AppColors.primaryLight,
+            ),
+            avatar: Icon(icon, size: 18, color: iconColor),
+            label: Text(
+              category,
+              style: TextStyle(
+                color: labelColor,
+                fontWeight: FontWeight.w700,
               ),
             ),
           );

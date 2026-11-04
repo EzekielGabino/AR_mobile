@@ -51,7 +51,7 @@ class LabSafetyScreen extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 17,
                     ),
                   ),
                   background: Container(
@@ -152,7 +152,7 @@ class _RuleGroup extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.primaryDark,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: SafetyColors.paperLine),
         boxShadow: [
@@ -168,7 +168,7 @@ class _RuleGroup extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: SafetyTextStyles.sectionTitle.copyWith(
+            style: SafetyTextStyles.sectionTitleLight.copyWith(
               color: color,
               fontSize: 15,
             ),

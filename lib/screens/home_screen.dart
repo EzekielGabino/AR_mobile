@@ -1,75 +1,112 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
-import 'package:scilense_ar_mobile/components/class_screens/activities_screen.dart';
-import 'package:scilense_ar_mobile/components/class_screens/announcement_screen.dart';
+import 'package:scilense_ar_mobile/screens/class_screens/activities_screen.dart';
+import 'package:scilense_ar_mobile/screens/class_screens/announcement_screen.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  String classId;
-  HomeScreen({super.key, required this.classId});
+  final String classId;
+  /// 0 = Stream, 1 = Activities
+  final int initialTab;
+  HomeScreen({super.key, required this.classId, this.initialTab = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final FirebaseAuth user = FirebaseAuth.instance;
   String classID = '';
   String subject = '';
   String section = '';
   String level = '';
-
   String teachUid = '';
+  bool _loading = true;
+  String? _error;
+
   @override
   void initState() {
     super.initState();
-
     classID = widget.classId;
-
     _getClassInfo();
   }
 
   Future<void> _getClassInfo() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('classes')
-        .doc(classID)
-        .get();
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final row = await SupabaseService.client
+          .from('classes')
+          .select('id, section_name, grade_level, subject, teacher_id')
+          .eq('id', classID)
+          .maybeSingle();
 
-    if (doc.exists) {
+      if (!mounted) return;
+
+      if (row == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Class not found.';
+        });
+        return;
+      }
+
       setState(() {
-        subject = doc.data()?['subject'] ?? '';
-        section = doc.data()?['section_name'] ?? '';
-        level = doc.data()?['grade_level'] ?? '';
-        teachUid = doc.data()?['teacher_uid'] ?? '';
+        subject = row['subject'] as String? ?? '';
+        section = row['section_name'] as String? ?? '';
+        level = row['grade_level'] as String? ?? '';
+        teachUid = row['teacher_id'] as String? ?? '';
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (teachUid.isEmpty) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(_error!, textAlign: TextAlign.center),
+          ),
+        ),
+      );
+    }
+
+    final title = [
+      if (subject.isNotEmpty) subject,
+      if (section.isNotEmpty) section,
+      if (level.isNotEmpty) level,
+    ].join(' · ');
+
     return DefaultTabController(
-      initialIndex: 0,
+      initialIndex: widget.initialTab.clamp(0, 1),
       length: 2,
       child: Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: Text('$subject - $section - $level'),
+          title: Text(title.isEmpty ? 'Classroom' : title),
           centerTitle: true,
           automaticallyImplyLeading: false,
-          bottom: TabBar(
+          bottom: const TabBar(
+            dividerColor: Colors.transparent,
+            dividerHeight: 0,
             tabs: <Widget>[
-              Tab(
-                child: Text('Stream', style: TextStyle(color: Colors.white)),
-              ),
-              Tab(
-                child: Text(
-                  'Activities',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
+              Tab(text: 'Stream'),
+              Tab(text: 'Activities'),
             ],
           ),
         ),
@@ -77,7 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
           children: <Widget>[
             AnnouncementSection(
               classID: classID,
-              user: user,
               teachUid: teachUid,
             ),
             ActivitiesSection(classId: classID),

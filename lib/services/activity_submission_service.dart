@@ -1,9 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
 class ActivitySubmissionService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  dynamic get _client => SupabaseService.client;
 
-  /// Submit a new activity.
   Future<String> submitActivity({
     required String activityId,
     required String classId,
@@ -14,70 +13,58 @@ class ActivitySubmissionService {
     int? score,
     String? feedback,
   }) async {
-    final submissionRef = _db.collection('activitySubmissions').doc();
-
-    await submissionRef.set({
-      'activityId': activityId,
-      'classId': classId,
-      'studentId': studentId,
-      'activityType': activityType,
+    final now = DateTime.now().toUtc().toIso8601String();
+    final row = await _client.from('activity_submissions').upsert({
+      'activity_id': activityId,
+      'class_id': classId,
+      'student_id': studentId,
+      'activity_type': activityType,
       'status': 'submitted',
-      'startedAt': FieldValue.serverTimestamp(),
-      'submittedAt': FieldValue.serverTimestamp(),
-      'simulationCompleted': simulationCompleted,
+      'started_at': now,
+      'submitted_at': now,
+      'simulation_completed': simulationCompleted,
       'answers': answers,
       'score': score,
       'feedback': feedback,
-      'gradedAt': null,
-      'gradedBy': null,
-      'returnedAt': null,
-    });
+    }, onConflict: 'activity_id,student_id').select('id').maybeSingle();
 
-    return submissionRef.id;
+    return (row?['id'] as String?) ?? '';
   }
 
-  /// Get this student's submission for one activity.
   Future<Map<String, dynamic>?> getStudentSubmission({
     required String activityId,
     required String studentId,
   }) async {
-    final query = await _db
-        .collection('activitySubmissions')
-        .where('activityId', isEqualTo: activityId)
-        .where('studentId', isEqualTo: studentId)
-        .limit(1)
-        .get();
+    final row = await _client
+        .from('activity_submissions')
+        .select()
+        .eq('activity_id', activityId)
+        .eq('student_id', studentId)
+        .maybeSingle();
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row as Map);
+  }
 
-    if (query.docs.isEmpty) {
-      return null;
+  /// activityId → submission row (camel-ish map for UI)
+  Future<Map<String, Map<String, dynamic>>> fetchMySubmissions({
+    required String classId,
+    required String studentId,
+  }) async {
+    final rows = await _client
+        .from('activity_submissions')
+        .select()
+        .eq('class_id', classId)
+        .eq('student_id', studentId);
+
+    final map = <String, Map<String, dynamic>>{};
+    for (final r in (rows as List)) {
+      final m = Map<String, dynamic>.from(r as Map);
+      final aid = m['activity_id'] as String?;
+      if (aid != null) map[aid] = m;
     }
-
-    return query.docs.first.data();
+    return map;
   }
 
-  /// Watch all submissions belonging to the current student.
-  ///
-  /// Used by the Activities screen to determine which
-  /// activities have already been submitted.
-  Stream<Map<String, DocumentSnapshot<Map<String, dynamic>>>>
-  watchMySubmissions({required String classId, required String studentId}) {
-    return _db
-        .collection('activitySubmissions')
-        .where('classId', isEqualTo: classId)
-        .where('studentId', isEqualTo: studentId)
-        .snapshots()
-        .map((snapshot) {
-          return {
-            for (final doc in snapshot.docs)
-              doc.data()['activityId'] as String: doc,
-          };
-        });
-  }
-
-  /// Mark a regular activity as submitted.
-  ///
-  /// This is useful for activities that don't use the
-  /// guided laboratory simulation flow.
   Future<String> markSubmitted({
     required String activityId,
     required String classId,
@@ -86,31 +73,16 @@ class ActivitySubmissionService {
     List<Map<String, dynamic>> answers = const [],
     int? score,
     String? feedback,
-  }) async {
-    final submissionRef = _db.collection('activitySubmissions').doc();
-
-    await submissionRef.set({
-      'activityId': activityId,
-      'classId': classId,
-      'studentId': studentId,
-      'activityType': activityType,
-      'status': 'submitted',
-
-      'startedAt': FieldValue.serverTimestamp(),
-      'submittedAt': FieldValue.serverTimestamp(),
-
-      'simulationCompleted': false,
-
-      'answers': answers,
-
-      'score': score,
-      'feedback': feedback,
-
-      'gradedAt': null,
-      'gradedBy': null,
-      'returnedAt': null,
-    });
-
-    return submissionRef.id;
+  }) {
+    return submitActivity(
+      activityId: activityId,
+      classId: classId,
+      studentId: studentId,
+      activityType: activityType,
+      simulationCompleted: false,
+      answers: answers,
+      score: score,
+      feedback: feedback,
+    );
   }
 }

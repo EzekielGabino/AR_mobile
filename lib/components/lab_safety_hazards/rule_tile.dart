@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/models/safety_item.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
+
 import 'detail_sheet.dart';
 
 class RuleTile extends StatelessWidget {
@@ -27,13 +28,7 @@ class RuleTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.title,
-                    style: SafetyTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
+                  Text(item.title, style: SafetyTextStyles.tileTitleLight),
                   const SizedBox(height: 2),
                   Text(item.shortDescription, style: SafetyTextStyles.caption),
                 ],

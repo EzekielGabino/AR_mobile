@@ -16,7 +16,7 @@ Future<void> showSafetyDetailSheet(BuildContext context, SafetyItem item) {
       expand: false,
       builder: (context, scrollController) => Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.accent,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: ListView(
@@ -119,7 +119,10 @@ class _Section extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: SafetyTextStyles.eyebrow),
+        Text(
+          label.toUpperCase(),
+          style: SafetyTextStyles.tileTitleDark.copyWith(fontSize: 15),
+        ),
         const SizedBox(height: 6),
         Text(text, style: SafetyTextStyles.body),
       ],
@@ -152,7 +155,7 @@ class _NoteBox extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: SafetyTextStyles.tileTitle.copyWith(
+            style: SafetyTextStyles.tileTitleDark.copyWith(
               fontSize: 12,
               color: SafetyColors.ink,
             ),

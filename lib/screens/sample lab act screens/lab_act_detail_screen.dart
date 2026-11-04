@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:scilense_ar_mobile/screens/sample%20lab%20act%20screens/lab_onboarding_screen.dart';
+import 'package:scilense_ar_mobile/services/lab_onboarding_store.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
 import 'package:scilense_ar_mobile/models/lab_activity_remote.dart';
 import 'package:scilense_ar_mobile/services/lab_activity_service.dart';
 import 'package:scilense_ar_mobile/screens/sample%20lab%20act%20screens/unity_lab_screen.dart';
@@ -57,7 +60,7 @@ class _LabActDetailScreenState extends State<LabActDetailScreen> {
             _error = null;
           } else {
             _error =
-                'Activity not found for id "$id". Check Firestore document id.';
+                'Activity not found for id "$id". Check Supabase practice_lab_activities.';
           }
           _loading = false;
         });
@@ -81,6 +84,13 @@ class _LabActDetailScreenState extends State<LabActDetailScreen> {
   }
 
   Future<void> _startLab(LabActivityRemote activity) async {
+    if (await LabOnboardingStore.shouldShow()) {
+      final go = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const LabOnboardingScreen()),
+      );
+      if (go != true || !mounted) return;
+    }
+    if (!mounted) return;
     final completed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => UnityLabScreen(activityJson: activity.toUnityJson()),
@@ -183,46 +193,67 @@ class _LabActDetailScreenState extends State<LabActDetailScreen> {
           ],
           Text(
             activity.description,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 20),
-          Text('Safety tips', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            activity.safetyTips.isEmpty
-                ? 'No safety tips listed.'
-                : activity.safetyTips,
-          ),
-          const SizedBox(height: 20),
-          Text('Apparatus', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          if (activity.apparatus.isEmpty)
-            const Text('—')
-          else
-            ...activity.apparatus.map(
-              (a) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text(a.displayName),
-                subtitle: a.maxVol > 0 ? Text('Capacity ${a.maxVol}') : null,
-              ),
-            ),
-          const SizedBox(height: 12),
-          Text('Elements', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          if (activity.elements.isEmpty)
-            const Text('—')
-          else
-            ...activity.elements.map(
-              (e) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text('${e.substanceName} (${e.formula})'),
-                subtitle: Text(
-                  '${e.type} · ${e.temperature}°C · ${e.role}\nMax Volume · ${e.maxVol}',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.textPrimary,
                 ),
+          ),
+          const SizedBox(height: 16),
+          _SectionCard(
+            icon: Icons.health_and_safety_outlined,
+            title: 'Safety tips',
+            child: Text(
+              activity.safetyTips.isEmpty
+                  ? 'No safety tips listed.'
+                  : activity.safetyTips,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                height: 1.4,
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          _SectionCard(
+            icon: Icons.science_outlined,
+            title: 'Apparatus',
+            child: activity.apparatus.isEmpty
+                ? const Text(
+                    '—',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  )
+                : Column(
+                    children: activity.apparatus
+                        .map(
+                          (a) => _BulletRow(
+                            title: a.displayName,
+                            subtitle: a.maxVol > 0
+                                ? 'Capacity ${a.maxVol}'
+                                : null,
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+          const SizedBox(height: 12),
+          _SectionCard(
+            icon: Icons.bubble_chart_outlined,
+            title: 'Elements',
+            child: activity.elements.isEmpty
+                ? const Text(
+                    '—',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  )
+                : Column(
+                    children: activity.elements
+                        .map(
+                          (e) => _BulletRow(
+                            title: '${e.substanceName} (${e.formula})',
+                            subtitle:
+                                '${e.type} · ${e.temperature}°C · ${e.role} · Max vol ${e.maxVol}',
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
           if (_labComplete) ...[
             const SizedBox(height: 16),
             Text(
@@ -348,6 +379,100 @@ class _LabActQuizScreenState extends State<_LabActQuizScreen> {
             child: const Text('Submit'),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.cardBackground,
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.28),
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: AppColors.accent),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BulletRow extends StatelessWidget {
+  const _BulletRow({required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = subtitle?.trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Icon(Icons.circle, size: 6, color: AppColors.primaryLight),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (sub != null && sub.isNotEmpty)
+                  Text(
+                    sub,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

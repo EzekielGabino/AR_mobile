@@ -169,7 +169,9 @@ class QuizQuestion {
       options: (json['options'] as List? ?? [])
           .map((o) => QuizOption.fromJson(Map<String, dynamic>.from(o as Map)))
           .toList(),
-      correctOption: json['correctOption'] as String? ?? '',
+      correctOption: (json['correctOption'] as String?)?.trim().isNotEmpty == true
+          ? (json['correctOption'] as String).trim()
+          : (json['correctOptionId'] as String?)?.trim() ?? '',
       explanation: json['explanation'] as String?,
     );
   }
@@ -181,16 +183,19 @@ class ExperimentQuiz {
   const ExperimentQuiz({required this.questions});
 
   factory ExperimentQuiz.fromJson(Map<String, dynamic> json) {
-    return ExperimentQuiz(
-      questions:
-          (json['questions'] as List? ?? [])
-              .map(
-                (q) =>
-                    QuizQuestion.fromJson(Map<String, dynamic>.from(q as Map)),
-              )
-              .toList()
-            ..sort((a, b) => a.order.compareTo(b.order)),
-    );
+    final list = (json['questions'] as List? ?? [])
+        .map(
+          (q) => QuizQuestion.fromJson(Map<String, dynamic>.from(q as Map)),
+        )
+        .toList();
+    // Only sort when orders are meaningful (not all zero / duplicates).
+    final orders = list.map((q) => q.order).toSet();
+    if (list.length > 1 &&
+        orders.length == list.length &&
+        !orders.contains(0)) {
+      list.sort((a, b) => a.order.compareTo(b.order));
+    }
+    return ExperimentQuiz(questions: list);
   }
 
   factory ExperimentQuiz.empty() => const ExperimentQuiz(questions: []);
@@ -222,24 +227,141 @@ class Experiment {
   factory Experiment.fromJson(String id, Map<String, dynamic> json) {
     return Experiment(
       id: id,
-      title: json['title'] as String,
-      imagePath: (json['imagePath'] as String?),
+      title: json['title'] as String? ?? 'Lab activity',
+      imagePath: json['imagePath'] as String?,
       description: json['description'] as String? ?? '',
       maxScore: _toInt(json['maxScore']),
-      materials: (json['materials'] as List? ?? [])
-          .map((m) => ExperimentMaterial.fromJson(m as Map<String, dynamic>))
-          .toList(),
-      safetyPrecautions: List<String>.from(json['safetyPrecautions'] ?? []),
-      steps:
-          (json['steps'] as List)
-              .map((s) => ExperimentStep.fromJson(s as Map<String, dynamic>))
-              .toList()
-            ..sort((a, b) => a.order.compareTo(b.order)),
-      quiz: json['quiz'] != null
-          ? ExperimentQuiz.fromJson(
-              Map<String, dynamic>.from(json['quiz'] as Map),
-            )
-          : ExperimentQuiz.empty(),
+      materials: _parseMaterials(json['materials']),
+      safetyPrecautions: _parseStringList(json['safetyPrecautions']),
+      steps: _parseSteps(json['steps']),
+      quiz: _parseQuiz(json['quiz']),
     );
   }
+}
+
+List<ExperimentMaterial> _parseMaterials(dynamic raw) {
+  if (raw is! List) return const [];
+  final out = <ExperimentMaterial>[];
+  for (final m in raw) {
+    if (m is String) {
+      out.add(ExperimentMaterial(labEquivalent: m, realWorldSubstitute: ''));
+    } else if (m is Map) {
+      final map = Map<String, dynamic>.from(m);
+      out.add(
+        ExperimentMaterial(
+          labEquivalent: map['labEquivalent'] as String? ??
+              map['displayName'] as String? ??
+              map['key'] as String? ??
+              map['name'] as String? ??
+              '',
+          realWorldSubstitute:
+              map['realWorldSubstitute'] as String? ?? '',
+        ),
+      );
+    }
+  }
+  return out;
+}
+
+List<String> _parseStringList(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+}
+
+StepType _parseStepType(dynamic value) {
+  final s = (value ?? '').toString();
+  for (final t in StepType.values) {
+    if (t.name == s) return t;
+  }
+  // Web lab builder actions → closest mobile step type
+  switch (s) {
+    case 'PlaceApparatus':
+    case 'setup':
+      return StepType.setup;
+    case 'AddElement':
+    case 'addElement':
+      return StepType.addElement;
+    case 'Observe':
+    case 'Wait':
+    case 'trigger':
+      return StepType.trigger;
+    default:
+      return StepType.explanation;
+  }
+}
+
+List<ExperimentStep> _parseSteps(dynamic raw) {
+  if (raw is! List) return const [];
+  final out = <ExperimentStep>[];
+  var i = 0;
+  for (final s in raw) {
+    i++;
+    if (s is! Map) continue;
+    final map = Map<String, dynamic>.from(s);
+    final typeRaw = map['type'] ?? map['action'];
+    out.add(
+      ExperimentStep(
+        order: _toInt(map['order']) ?? i,
+        type: _parseStepType(typeRaw),
+        element: map['element'] as String? ?? map['elementFormula'] as String?,
+        label: map['label'] as String? ??
+            map['targetApparatusName'] as String?,
+        formula: map['formula'] as String? ?? map['elementFormula'] as String?,
+        unit: map['unit'] as String?,
+        targetAmount: _toDouble(map['targetAmount'] ?? map['targetVolume']),
+        amountOptions: (map['amountOptions'] as List?)
+            ?.map((e) => _toDouble(e) ?? 0.0)
+            .toList(),
+        color: map['color'] as String? ?? map['reactionColorHex'] as String?,
+        instruction: map['instruction'] as String?,
+        explanation: map['explanation'] as String?,
+        realWorldConnection: map['realWorldConnection'] as String?,
+        safetyDialog: map['safetyDialog'] as bool? ?? false,
+        triggerImmediately: map['triggerImmediately'] as bool? ?? false,
+        elementState: _parseElementState(map['elementState'] ?? map['type']),
+        reactionType: map['reactionType'] as String?,
+        reactionColor:
+            map['reactionColor'] as String? ?? map['reactionColorHex'] as String?,
+        reactionDurationMs: _toInt(map['reactionDurationMs']),
+        foamIntensity: _toDouble(map['foamIntensity']),
+      ),
+    );
+  }
+  out.sort((a, b) => a.order.compareTo(b.order));
+  return out;
+}
+
+ExperimentQuiz _parseQuiz(dynamic raw) {
+  if (raw == null) return ExperimentQuiz.empty();
+  // Lab shape: [ {prompt, options, correctOptionId}, ... ]
+  if (raw is List) {
+    final questions = <QuizQuestion>[];
+    var i = 0;
+    for (final q in raw) {
+      i++;
+      if (q is! Map) continue;
+      final map = Map<String, dynamic>.from(q);
+      final opts = (map['options'] as List? ?? [])
+          .whereType<Map>()
+          .map((o) => QuizOption.fromJson(Map<String, dynamic>.from(o)))
+          .toList();
+      questions.add(
+        QuizQuestion(
+          order: _toInt(map['order']) ?? i,
+          prompt: map['prompt'] as String? ?? '',
+          options: opts,
+          correctOption: map['correctOption'] as String? ??
+              map['correctOptionId'] as String? ??
+              '',
+          explanation: map['explanation'] as String?,
+        ),
+      );
+    }
+    questions.sort((a, b) => a.order.compareTo(b.order));
+    return ExperimentQuiz(questions: questions);
+  }
+  if (raw is Map) {
+    return ExperimentQuiz.fromJson(Map<String, dynamic>.from(raw));
+  }
+  return ExperimentQuiz.empty();
 }

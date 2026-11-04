@@ -1,14 +1,13 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/components/auth_gate.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
-
-import 'services/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Supabase client ready for later steps (Auth, classes, labs).
+  await SupabaseService.initialize();
   await AuthService().initialize();
   runApp(MyApp());
 }
@@ -19,6 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'ScilenseAR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: AuthGate(),

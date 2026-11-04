@@ -1,82 +1,177 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:scilense_ar_mobile/components/auth_gate.dart';
-import 'package:scilense_ar_mobile/screens/main_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scilense_ar_mobile/screens/people%20screens/join_classroom_screen.dart';
+import 'package:scilense_ar_mobile/screens/people%20screens/pending_approval_screen.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
 import 'package:scilense_ar_mobile/services/classroom_service.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
-/// Doubles as two things depending on how it's reached:
-/// - Pushed from ChemistryHubScreen/PeopleScreen's profile icon — a
-///   normal screen the user can back out of.
-/// - Shown directly by AuthGate as the app's root when the student is
-///   signed in but hasn't joined a classroom yet — in that case it's
-///   the gate itself: account info plus a "Join a Classroom" action,
-///   nothing else. A successful join is picked up by AuthGate's own
-///   Firestore stream, which swaps the root to MainScreen on its own.
+/// Profile / sign-in. Auth is Supabase (M2 Part A).
+/// Classroom join still uses ClassroomService (Firebase until M3).
 class ProfileScreen extends StatelessWidget {
-  ProfileScreen({super.key});
-  final FirebaseAuth auth = FirebaseAuth.instance;
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profile"),
-        centerTitle: true,
-        actions: [
-          if (auth.currentUser != null)
-            IconButton(
-              onPressed: () => _handleGoogleSignout(context),
-              icon: const Icon(Icons.exit_to_app),
-            ),
-        ],
-      ),
-      body: auth.currentUser != null
-          ? _SignedInBody(user: auth.currentUser!)
-          : Center(
-              child: ElevatedButton(
-                onPressed: () =>
-                    _handleGoogleSignin(context, user: auth.currentUser),
-                child: const Text("Sign-in"),
-              ),
-            ),
+    return StreamBuilder<AuthState>(
+      stream: SupabaseService.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        final user = snapshot.data?.session?.user ??
+            AuthService().currentUser ??
+            SupabaseService.client.auth.currentUser;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Profile"),
+            centerTitle: true,
+            actions: [
+              if (user != null)
+                IconButton(
+                  onPressed: () => _handleSignOut(context),
+                  icon: const Icon(Icons.exit_to_app),
+                ),
+            ],
+          ),
+          body: user != null
+              ? _SignedInBody(user: user)
+              : _SignedOutBody(
+                  onSignIn: () => _handleGoogleSignIn(context),
+                ),
+        );
+      },
     );
   }
 
-  void _handleGoogleSignin(BuildContext ctx, {user}) async {
+  static void _handleGoogleSignIn(BuildContext ctx) async {
     try {
       await AuthService().signInWithGoogle();
-      if (!ctx.mounted) return;
-      Navigator.of(ctx).pop(); // AuthGate has already swapped underneath
+      // Stay on profile — StreamBuilder rebuilds into signed-in body.
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return;
       if (!ctx.mounted) return;
       ScaffoldMessenger.of(ctx).showSnackBar(
         const SnackBar(content: Text('Sign-in failed. Please try again.')),
       );
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       if (!ctx.mounted) return;
       ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text(AuthService.getFirebaseErrorMessage(e))),
+        SnackBar(content: Text(AuthService.getErrorMessage(e))),
       );
     }
   }
 
-  void _handleGoogleSignout(BuildContext ctx) async {
+  static void _handleSignOut(BuildContext ctx) async {
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'You will need to sign in again to join a class and submit activities.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!ctx.mounted) return;
     try {
       await AuthService().signOut();
+    } catch (e) {
       if (!ctx.mounted) return;
-      if (Navigator.of(ctx).canPop()) Navigator.pop(ctx);
-    } on FirebaseAuthException catch (e) {
-      if (!ctx.mounted) return;
-      ScaffoldMessenger.of(
-        ctx,
-      ).showSnackBar(SnackBar(content: Text(e.message!)));
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(content: Text(AuthService.getErrorMessage(e))),
+      );
     }
+  }
+}
+
+/// Signed-out: app mark + name, then Google sign-in.
+class _SignedOutBody extends StatelessWidget {
+  const _SignedOutBody({required this.onSignIn});
+
+  final VoidCallback onSignIn;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/branding/app_icon.png',
+                width: 112,
+                height: 112,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.science_outlined,
+                  size: 96,
+                  color: AppColors.primary.withValues(alpha: 0.85),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'ScilenseAR',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Sign in to join a class and track lab activities.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onSignIn,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Sign in with Google',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -86,19 +181,31 @@ class _SignedInBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: ClassroomService().watchMyProfile(user.uid),
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _loadProfile(),
       builder: (context, snapshot) {
-        final data = snapshot.data?.data();
-        final classroomId = data?['classroomId'] as String?;
-        final classroomName = data?['classroomName'] as String?;
-        final classroomCode = data?['classroomAccessCode'] as String?;
+        final data = snapshot.data;
+        final classroomId = data?['classroom_id'] as String?;
+        final classroomName = data?['classroom_name'] as String?;
+        final classroomCode = data?['classroom_access_code'] as String?;
         final inClassroom = classroomId != null && classroomId.isNotEmpty;
+
+        final displayName = data?['display_name'] as String? ??
+            user.userMetadata?['full_name'] as String? ??
+            user.userMetadata?['name'] as String? ??
+            user.email ??
+            'Student';
+        final photoUrl = data?['photo_url'] as String? ??
+            user.userMetadata?['avatar_url'] as String?;
 
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _AccountCard(user: user),
+            _AccountCard(
+              displayName: displayName,
+              email: user.email,
+              photoUrl: photoUrl,
+            ),
             const SizedBox(height: 20),
             inClassroom
                 ? _ClassroomCard(
@@ -111,6 +218,20 @@ class _SignedInBody extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<Map<String, dynamic>?> _loadProfile() async {
+    try {
+      return await SupabaseService.client
+          .from('profiles')
+          .select(
+            'classroom_id, classroom_name, classroom_access_code, display_name, photo_url',
+          )
+          .eq('id', user.id)
+          .maybeSingle();
+    } catch (_) {
+      return null;
+    }
   }
 
   void _confirmLeave(BuildContext context) async {
@@ -136,10 +257,18 @@ class _SignedInBody extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      await ClassroomService().leaveClassroom();
-      // Collapses any pushed screens back to the (now-restricted) root
-      // AuthGate is showing, instead of leaving a stale pushed
-      // ProfileScreen sitting on top of it.
+      // leaveClassroom still Firebase until M3 — call if it doesn't throw hard
+      try {
+        await ClassroomService().leaveClassroom();
+      } catch (_) {}
+      try {
+        await SupabaseService.client.from('profiles').update({
+          'classroom_id': null,
+          'classroom_name': null,
+          'classroom_access_code': null,
+          'classroom_joined_at': null,
+        }).eq('id', user.id);
+      } catch (_) {}
       if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -148,8 +277,15 @@ class _SignedInBody extends StatelessWidget {
 }
 
 class _AccountCard extends StatelessWidget {
-  final User user;
-  const _AccountCard({required this.user});
+  final String displayName;
+  final String? email;
+  final String? photoUrl;
+
+  const _AccountCard({
+    required this.displayName,
+    this.email,
+    this.photoUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -161,10 +297,9 @@ class _AccountCard extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.primaryLight.withValues(alpha: 0.2),
-              backgroundImage: user.photoURL != null
-                  ? NetworkImage(user.photoURL!)
-                  : null,
-              child: user.photoURL == null
+              backgroundImage:
+                  photoUrl != null ? NetworkImage(photoUrl!) : null,
+              child: photoUrl == null
                   ? const Icon(Icons.person, color: AppColors.primary, size: 28)
                   : null,
             ),
@@ -174,15 +309,15 @@ class _AccountCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user.displayName ?? 'Student',
+                    displayName,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
-                  if (user.email != null)
+                  if (email != null)
                     Text(
-                      user.email!,
+                      email!,
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -203,66 +338,107 @@ class _JoinClassroomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.primaryDark,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.qr_code_scanner, color: Colors.white, size: 32),
-            const SizedBox(height: 12),
-            const Text(
-              'Join Your Classroom',
-              style: TextStyle(
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: ClassroomService().fetchMyPendingMembership(),
+      builder: (context, snap) {
+        final pending = snap.data;
+        final hasPending = pending != null;
+        String? classId;
+        String? section;
+        String? code;
+        if (hasPending) {
+          classId = pending['class_id'] as String?;
+          final classes = pending['classes'];
+          if (classes is Map) {
+            section = classes['section_name'] as String?;
+            code = classes['access_code'] as String?;
+          }
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: AppColors.headerGradient,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                hasPending ? Icons.hourglass_top : Icons.qr_code_scanner,
                 color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+                size: 32,
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              "Scan your teacher's QR code or enter the class code to "
-              'unlock experiments, quizzes, and equipment tracking.',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final result = await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const JoinClassroomScreen(),
-                    ),
-                  );
-                  // AuthGate's stream already swaps to MainScreen once
-                  // Firestore reflects the join — just clear the stack
-                  // of anything pushed on top of it (this ProfileScreen,
-                  // the scanner) so the user lands cleanly.
-                  if (result != null && context.mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  }
-                },
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('Scan QR / Enter Code'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              const SizedBox(height: 12),
+              Text(
+                hasPending ? 'Join request pending' : 'Join Your Classroom',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 6),
+              Text(
+                hasPending
+                    ? 'Your teacher has not approved this class yet. You can open the waiting screen anytime.'
+                    : "Scan your teacher's QR code or enter the class code to "
+                        'unlock experiments, quizzes, and equipment tracking.',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    if (hasPending && classId != null && classId.isNotEmpty) {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PendingApprovalScreen(
+                            classId: classId!,
+                            sectionName: section,
+                            accessCode: code,
+                          ),
+                        ),
+                      );
+                      // Rebuild card after returning (cancel / still pending)
+                      if (context.mounted) {
+                        (context as Element).markNeedsBuild();
+                      }
+                      return;
+                    }
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const JoinClassroomScreen(),
+                      ),
+                    );
+                    if (context.mounted) {
+                      (context as Element).markNeedsBuild();
+                    }
+                  },
+                  icon: Icon(hasPending ? Icons.hourglass_top : Icons.login),
+                  label: Text(
+                    hasPending ? 'View waiting status' : 'Join with code or QR',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.primaryDark,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
+
 
 class _ClassroomCard extends StatelessWidget {
   final String name;
@@ -279,24 +455,16 @@ class _ClassroomCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.school, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
+            Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             if (code.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 'Code: $code',
                 style: const TextStyle(
@@ -305,17 +473,10 @@ class _ClassroomCard extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: onLeave,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.redAccent,
-                  side: const BorderSide(color: Colors.redAccent),
-                ),
-                child: const Text('Leave Classroom'),
-              ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: onLeave,
+              child: const Text('Leave classroom'),
             ),
           ],
         ),

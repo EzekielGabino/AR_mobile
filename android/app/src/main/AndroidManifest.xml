@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="scilense_ar_mobile"
+        android:label="ScilenseAR"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

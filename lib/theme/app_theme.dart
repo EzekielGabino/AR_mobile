@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primary = Color(0xFF1565C0); // deep blue
-  static const Color primaryDark = Color(0xFF0B3C78); // near-navy
-  static const Color primaryLight = Color(0xFF64B5F6);
-  static const Color accent = Color(0xFF29B6F6); // light sky blue accent
-  static const Color background = Color(0xFFF2F7FD); // near-white blue tint
-  static const Color cardBackground = Colors.white;
-  static const Color textPrimary = Color(0xFF0F2A47);
-  static const Color textSecondary = Color(0xFF4A6B8A);
-  static const Color safetyRed = Color(0xFFD32F2F); // for safety tip accents
+  // Brand blues from ColorHunt, with a lighter page canvas for readability.
+  // #091540 · #1B2CC1 · #7692FF · #ABD2FA
+  static const Color primary = Color(0xFF1B2CC1); // vivid indigo
+  static const Color primaryDark = Color(0xFF091540); // navy (app bars / brand)
+  static const Color primaryLight = Color(0xFF7692FF); // periwinkle
+  static const Color primaryGray = Color(0xFF5C6578);
+  static const Color accent = Color(0xFF3D6FD9); // stronger accent on light UI
+  static const Color accentSoft = Color(0xFFABD2FA); // soft sky
+  static const Color background = Color(0xFFE8F1FA); // light blue-grey canvas
+  static const Color cardBackground = Color(0xFFFFFFFF); // white cards
+  static const Color textPrimary = Color(0xFF0A2F45); // dark navy text
+  static const Color textSecondary = Color(0xFF3D5A73); // muted blue-grey
+  static const Color safetyRed = Color(0xFFD32F2F); // hazard only
 
   /// Header gradient used on the gallery app bar and detail hero overlay.
   static const LinearGradient headerGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primaryDark, primary, accent],
+    colors: [primaryDark, primary, primaryLight],
+  );
+
+  /// Accent strip / highlight gradient.
+  static const LinearGradient accentGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [primaryLight, accentSoft],
   );
 }
 
@@ -58,6 +69,7 @@ class SafetyColors {
   static const paper = Color(0xFFE7ECEE);
   static const paperSoft = Color(0xFFF2F5F6);
   static const paperLine = Color(0xFFC7D1D5);
+  static const gray = Color.fromRGBO(182, 179, 215, 0.729);
 
   static const yellow = Color(0xFFF4B400);
   static const orange = Color(0xFFE2572B);
@@ -109,18 +121,33 @@ class SafetyTextStyles {
     height: 1.05,
   );
 
-  static const TextStyle sectionTitle = TextStyle(
+  static const TextStyle sectionTitleDark = TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.3,
     color: SafetyColors.ink,
   );
 
-  static const TextStyle tileTitle = TextStyle(
+  static const TextStyle sectionTitleLight = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.3,
+    color: SafetyColors.paperLine,
+  );
+
+  static const TextStyle tileTitleDark = TextStyle(
     fontSize: 12.5,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.2,
     color: SafetyColors.ink,
+    height: 1.2,
+  );
+
+  static const TextStyle tileTitleLight = TextStyle(
+    fontSize: 12.5,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.2,
+    color: SafetyColors.paperLine,
     height: 1.2,
   );
 
@@ -132,7 +159,7 @@ class SafetyTextStyles {
 
   static const TextStyle caption = TextStyle(
     fontSize: 12.5,
-    color: Color(0xFF5B6A72),
+    color: SafetyColors.gray,
     height: 1.4,
   );
 
@@ -153,24 +180,39 @@ class SafetyTextStyles {
 
 class AppTheme {
   static ThemeData get theme {
+    final scheme = ColorScheme.light(
+      primary: AppColors.primary,
+      onPrimary: Colors.white,
+      primaryContainer: AppColors.accentSoft,
+      onPrimaryContainer: AppColors.primaryDark,
+      secondary: AppColors.primaryLight,
+      onSecondary: AppColors.primaryDark,
+      secondaryContainer: AppColors.accentSoft,
+      onSecondaryContainer: AppColors.primaryDark,
+      surface: AppColors.cardBackground,
+      onSurface: AppColors.textPrimary,
+      surfaceContainerHighest: Color(0xFFD6E6F7),
+      error: AppColors.safetyRed,
+      onError: Colors.white,
+      outline: AppColors.primaryLight.withValues(alpha: 0.55),
+    );
+
     final base = ThemeData(
       useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.background,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
-        primary: AppColors.primary,
-        secondary: AppColors.accent,
-        brightness: Brightness.light,
-      ),
       fontFamily: 'Roboto',
     );
 
     return base.copyWith(
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.white),
+        actionsIconTheme: IconThemeData(color: Colors.white),
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 20,
@@ -180,10 +222,116 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: AppColors.cardBackground,
-        elevation: 3,
-        shadowColor: AppColors.primaryDark.withValues(alpha: 0.18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.35),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 3,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primaryLight, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.cardBackground,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textSecondary,
+        selectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w500,
+          fontSize: 12,
+        ),
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: Colors.white,
+        unselectedLabelColor: Color(0xB3FFFFFF),
+        indicatorColor: AppColors.accentSoft,
+        indicatorSize: TabBarIndicatorSize.label,
+        labelStyle: TextStyle(fontWeight: FontWeight.w700),
+        // Remove Material 3 horizontal line under tabs
+        dividerColor: Colors.transparent,
+        dividerHeight: 0,
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        backgroundColor: AppColors.primaryLight.withValues(alpha: 0.35),
+        selectedColor: AppColors.primary,
+        labelStyle: const TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+        secondaryLabelStyle: const TextStyle(color: Colors.white),
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.primaryLight.withValues(alpha: 0.6),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.primaryLight.withValues(alpha: 0.6),
+          ),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+      ),
+      dividerTheme: DividerThemeData(
+        color: AppColors.primaryLight.withValues(alpha: 0.45),
+        thickness: 1,
       ),
       textTheme: base.textTheme.copyWith(
         titleLarge: const TextStyle(
@@ -195,6 +343,11 @@ class AppTheme {
           fontWeight: FontWeight.w700,
         ),
         bodyMedium: const TextStyle(color: AppColors.textSecondary),
+        bodyLarge: const TextStyle(color: AppColors.textPrimary),
+        labelLarge: const TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:scilense_ar_mobile/models/element.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 class ElementDetailScreen extends StatelessWidget {
   final ElementData element;
@@ -68,7 +70,7 @@ class ElementDetailScreen extends StatelessWidget {
     final themeColor = getCategoryColor();
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: themeColor.withValues(alpha: 0.55),
       appBar: AppBar(
         title: Text('${element.name} (${element.symbol})'),
         backgroundColor: themeColor,
@@ -140,7 +142,11 @@ class ElementDetailScreen extends StatelessWidget {
 
             const Text(
               'Element Preview',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.background,
+              ),
             ),
             const SizedBox(height: 8),
 
@@ -171,7 +177,11 @@ class ElementDetailScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 const Text(
                   'Overview & Properties',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.background,
+                  ),
                 ),
               ],
             ),
@@ -179,7 +189,12 @@ class ElementDetailScreen extends StatelessWidget {
 
             Card(
               elevation: 2,
-              color: Colors.white,
+              color: themeColor.withValues(
+                alpha: 0.75,
+                red: 1,
+                blue: 0.8,
+                green: 1,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(color: Colors.grey.shade200, width: 1),
@@ -196,7 +211,7 @@ class ElementDetailScreen extends StatelessWidget {
                     ),
                     Divider(
                       height: 1,
-                      color: Colors.grey.shade100,
+                      color: themeColor.withValues(alpha: 0.50),
                       indent: 16,
                       endIndent: 16,
                     ),
@@ -208,7 +223,7 @@ class ElementDetailScreen extends StatelessWidget {
                     ),
                     Divider(
                       height: 1,
-                      color: Colors.grey.shade100,
+                      color: themeColor.withValues(alpha: 0.50),
                       indent: 16,
                       endIndent: 16,
                     ),
@@ -221,7 +236,7 @@ class ElementDetailScreen extends StatelessWidget {
                     ),
                     Divider(
                       height: 1,
-                      color: Colors.grey.shade100,
+                      color: themeColor.withValues(alpha: 0.50),
                       indent: 16,
                       endIndent: 16,
                     ),
@@ -233,7 +248,7 @@ class ElementDetailScreen extends StatelessWidget {
                     ),
                     Divider(
                       height: 1,
-                      color: Colors.grey.shade100,
+                      color: themeColor.withValues(alpha: 0.50),
                       indent: 16,
                       endIndent: 16,
                     ),
@@ -271,7 +286,7 @@ class ElementDetailScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: themeColor.withOpacity(0.12),
+                    color: themeColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, size: 20, color: themeColor),
@@ -297,7 +312,7 @@ class ElementDetailScreen extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.15),
+                  color: themeColor.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -306,7 +321,7 @@ class ElementDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: themeColor,
+                    color: themeColor.withValues(alpha: 1),
                   ),
                 ),
               ),
@@ -323,7 +338,7 @@ class ElementDetailScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: themeColor.withOpacity(0.12),
+              color: themeColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 20, color: themeColor),

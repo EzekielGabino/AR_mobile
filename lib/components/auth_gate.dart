@@ -1,56 +1,46 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scilense_ar_mobile/screens/chemistry_screens/chemistry_hub_screen.dart';
 import 'package:scilense_ar_mobile/screens/main_screen.dart';
 import 'package:scilense_ar_mobile/services/classroom_service.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
-/// Two real states now, not three:
-/// - No classroom (whether or not signed in) -> ChemistryHubScreen. It
-///   already gates "Sample Experiments" behind auth.currentUser on its
-///   own, so a signed-in student without a class sees the same hub an
-///   anonymous visitor does, just with a profile icon that lets them
-///   sign in / join a classroom. ProfileScreen is reached FROM here,
-///   never forced as the root — signing in should never take features
-///   away.
-/// - Signed in AND enrolled in a classroom -> MainScreen, the full app.
-///   Leaving the classroom clears the Firestore field this gate
-///   watches, dropping the student back to ChemistryHubScreen.
+/// Session + approved classroom (profiles.classroom_id) → MainScreen.
+/// Pending joins are handled under Profile → Join → Waiting (not here).
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    return StreamBuilder<AuthState>(
+      stream: SupabaseService.client.auth.onAuthStateChange,
       builder: (context, authSnapshot) {
-        if (authSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+        final session = authSnapshot.data?.session ??
+            SupabaseService.client.auth.currentSession;
+        final user = session?.user;
 
-        final user = authSnapshot.data;
         if (user == null) {
-          return ChemistryHubScreen();
+          return const ChemistryHubScreen();
         }
 
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: ClassroomService().watchMyProfile(user.uid),
+        return StreamBuilder<Map<String, dynamic>?>(
+          stream: ClassroomService().watchMyProfile(user.id),
           builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+            if (profileSnapshot.connectionState == ConnectionState.waiting &&
+                !profileSnapshot.hasData) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
             }
 
-            final classroomId =
-                profileSnapshot.data?.data()?['classroomId'] as String?;
-            final hasClassroom = classroomId != null && classroomId.isNotEmpty;
+            final data = profileSnapshot.data;
+            final classroomId = data?['classroom_id'] as String?;
+            final hasClassroom =
+                classroomId != null && classroomId.isNotEmpty;
 
             return hasClassroom
                 ? MainScreen(classId: classroomId)
-                : ChemistryHubScreen();
+                : const ChemistryHubScreen();
           },
         );
       },

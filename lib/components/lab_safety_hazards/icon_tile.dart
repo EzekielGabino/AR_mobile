@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/models/safety_item.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
+
 import 'detail_sheet.dart';
 
 class IconTile extends StatelessWidget {
@@ -14,7 +15,7 @@ class IconTile extends StatelessWidget {
       onTap: () => showSafetyDetailSheet(context, item),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.accentSoft,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: SafetyColors.paperLine),
           boxShadow: const [
@@ -40,7 +41,7 @@ class IconTile extends StatelessWidget {
               child: Text(
                 item.title,
                 textAlign: TextAlign.center,
-                style: SafetyTextStyles.tileTitle,
+                style: SafetyTextStyles.tileTitleDark,
               ),
             ),
             const SizedBox(height: 4),

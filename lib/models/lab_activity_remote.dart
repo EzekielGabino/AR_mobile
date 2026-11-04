@@ -1,6 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// Apparatus entry from Firestore `labActivities/{id}.apparatus[]`.
+/// Apparatus entry from practice lab `apparatus[]` JSON.
 class RemoteApparatus {
   final String key;
   final String displayName;
@@ -179,7 +177,7 @@ class RemoteQuizQuestion {
       };
 }
 
-/// Full lab activity document from Firestore `labActivities/{id}`.
+/// Full practice lab activity (Supabase [practice_lab_activities] or map).
 class LabActivityRemote {
   final String id;
   final String title;
@@ -203,25 +201,28 @@ class LabActivityRemote {
     required this.quiz,
   });
 
-  factory LabActivityRemote.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
-    return LabActivityRemote.fromMap(data, docId: doc.id);
+  /// Row from Supabase `practice_lab_activities` (snake_case columns + JSONB).
+  factory LabActivityRemote.fromSupabase(Map<String, dynamic> row) {
+    return LabActivityRemote.fromMap(_normalizeSupabaseRow(row));
   }
 
   factory LabActivityRemote.fromMap(Map<String, dynamic> map, {String? docId}) {
-    final apparatusRaw = map['apparatus'] as List<dynamic>? ?? [];
-    final elementsRaw = map['elements'] as List<dynamic>? ?? [];
-    final stepsRaw = map['steps'] as List<dynamic>? ?? [];
-    final quizRaw = map['quiz'] as List<dynamic>? ?? [];
+    final apparatusRaw = _asList(map['apparatus']);
+    final elementsRaw = _asList(map['elements']);
+    final stepsRaw = _asList(map['steps']);
+    final quizRaw = _asList(map['quiz']);
 
+    final idVal = map['id']?.toString();
     return LabActivityRemote(
-      id: (map['id'] as String?)?.isNotEmpty == true
-          ? map['id'] as String
-          : (docId ?? ''),
+      id: (idVal != null && idVal.isNotEmpty) ? idVal : (docId ?? ''),
       title: map['title'] as String? ?? '',
-      labCategory: map['labCategory'] as String? ?? '',
+      labCategory: map['labCategory'] as String? ??
+          map['lab_category'] as String? ??
+          '',
       description: map['description'] as String? ?? '',
-      safetyTips: map['safetyTips'] as String? ?? '',
+      safetyTips: map['safetyTips'] as String? ??
+          map['safety_tips'] as String? ??
+          '',
       apparatus: apparatusRaw
           .whereType<Map>()
           .map((e) => RemoteApparatus.fromMap(Map<String, dynamic>.from(e)))
@@ -272,4 +273,18 @@ double _toDouble(dynamic value) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value) ?? 0;
   return 0;
+}
+
+List<dynamic> _asList(dynamic value) {
+  if (value == null) return const [];
+  if (value is List) return value;
+  return const [];
+}
+
+/// Map Supabase snake_case columns to the camelCase keys [fromMap] expects.
+Map<String, dynamic> _normalizeSupabaseRow(Map<String, dynamic> row) {
+  final m = Map<String, dynamic>.from(row);
+  m['labCategory'] = m['labCategory'] ?? m['lab_category'];
+  m['safetyTips'] = m['safetyTips'] ?? m['safety_tips'];
+  return m;
 }

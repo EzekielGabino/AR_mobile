@@ -1,9 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:scilense_ar_mobile/components/auth_gate.dart';
 import 'package:scilense_ar_mobile/services/classroom_service.dart';
+import 'package:scilense_ar_mobile/screens/people%20screens/pending_approval_screen.dart';
 
 class JoinClassroomScreen extends StatefulWidget {
   const JoinClassroomScreen({super.key});
@@ -13,27 +12,60 @@ class JoinClassroomScreen extends StatefulWidget {
 }
 
 class _JoinClassroomScreenState extends State<JoinClassroomScreen> {
-  MobileScannerController cameraController = MobileScannerController();
+  final MobileScannerController cameraController = MobileScannerController();
+  final TextEditingController _codeController = TextEditingController();
   bool _isScanning = true;
+  bool _joining = false;
+
+  @override
+  void dispose() {
+    cameraController.dispose();
+    _codeController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Scan Class Code")),
-      body: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(20),
+      appBar: AppBar(title: const Text('Join classroom')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(child: SizedBox(height: 15)),
             Expanded(
               flex: 3,
-              child: MobileScanner(
-                controller: cameraController,
-                onDetect: _foundCode,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: MobileScanner(
+                  controller: cameraController,
+                  onDetect: _foundCode,
+                ),
               ),
             ),
-            Expanded(child: SizedBox(height: 15)),
+            const SizedBox(height: 16),
+            const Text(
+              'Or enter the class code',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _codeController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                hintText: 'e.g. ABC123',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _joining
+                    ? null
+                    : () => _join(_codeController.text),
+                child: Text(_joining ? 'Joining…' : 'Join with code'),
+              ),
+            ),
           ],
         ),
       ),
@@ -41,42 +73,67 @@ class _JoinClassroomScreenState extends State<JoinClassroomScreen> {
   }
 
   Future<void> _foundCode(BarcodeCapture capture) async {
-    if (!_isScanning) return;
+    if (!_isScanning || _joining) return;
 
-    String? code = '';
-
-    final List<Barcode> barcodes = capture.barcodes;
-
-    for (final barcode in barcodes) {
+    String? code;
+    for (final barcode in capture.barcodes) {
       code = barcode.rawValue;
+      if (code != null && code.isNotEmpty) break;
     }
+    if (code == null || code.isEmpty) return;
 
     _isScanning = false;
     await cameraController.stop();
-    Center(child: CircularProgressIndicator());
+    await _join(code);
+  }
+
+  Future<void> _join(String code) async {
+    if (_joining) return;
+    setState(() => _joining = true);
 
     try {
-      await ClassroomService().joinByAccessCode(code!);
+      final info = await ClassroomService().joinByAccessCode(code);
 
-      if (!context.mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => AuthGate()),
-        (value) => false,
+      if (!mounted) return;
+      if (info.isApproved) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+          (_) => false,
+        );
+        return;
+      }
+      // Pending: Profile → Join → Waiting (back returns toward profile)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PendingApprovalScreen(
+            classId: info.id,
+            sectionName: info.sectionName,
+            accessCode: info.accessCode,
+          ),
+        ),
       );
-    } on FirebaseException catch (ex) {
-      if (!context.mounted) return;
+    } on ClassroomJoinException catch (ex) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Joining Class Failed(Firebase): ${ex}")),
+        SnackBar(content: Text(ex.message)),
       );
       _isScanning = true;
+      try {
+        await cameraController.start();
+      } catch (_) {}
     } catch (ex) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Joining Class Failed(normal): ${ex}")),
+        SnackBar(content: Text('Joining failed: $ex')),
       );
       _isScanning = true;
+      try {
+        await cameraController.start();
+      } catch (_) {}
+    } finally {
+      if (mounted) setState(() => _joining = false);
     }
   }
 }

@@ -1,5 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
+import 'package:scilense_ar_mobile/services/auth_service.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
 class ClassroomJoinException implements Exception {
   final String message;
@@ -8,9 +10,7 @@ class ClassroomJoinException implements Exception {
   String toString() => message;
 }
 
-/// Lightweight view of a classroom section — just what the mobile UI
-/// needs after a successful join. Mirrors the fields Class­Controller.php
-/// / create.blade.php write on the web side.
+/// Lightweight view of a classroom after a successful join.
 class ClassroomInfo {
   final String id;
   final String sectionName;
@@ -18,6 +18,8 @@ class ClassroomInfo {
   final String subject;
   final String accessCode;
   final String teacherUid;
+  /// pending | approved | rejected
+  final String membershipStatus;
 
   const ClassroomInfo({
     required this.id,
@@ -26,30 +28,56 @@ class ClassroomInfo {
     required this.subject,
     required this.accessCode,
     required this.teacherUid,
+    this.membershipStatus = 'approved',
   });
+
+  bool get isPending => membershipStatus == 'pending';
+  bool get isApproved => membershipStatus == 'approved';
 }
 
-/// Handles a student joining/leaving a classroom section created on the
-/// web teacher portal. Mirrors ClassroomController.php's joinClassroom
-/// logic, but writes directly to Firestore from the mobile client (same
-/// pattern AuthService already uses for the 'users' collection) instead
-/// of going through the Laravel API, since the mobile app has no session
-/// cookie to authenticate an HTTP call with.
-///
-/// On a successful join, 'classroomId' (plus a little display metadata)
-/// is stamped onto the student's own users/{uid} doc. That's what
-/// AuthGate watches to decide between the restricted profile-only state
-/// and the full MainScreen — a single cheap document read instead of
-/// scanning every class for a matching student entry.
+/// Join / leave classroom via Supabase (mobile M3).
 class ClassroomService {
   static final ClassroomService _instance = ClassroomService._internal();
   factory ClassroomService() => _instance;
   ClassroomService._internal();
 
-  final _db = FirebaseFirestore.instance;
+  final _profileTicks = StreamController<void>.broadcast();
+
+  dynamic get _client => SupabaseService.client;
+
+  /// Call after profile classroom fields change so AuthGate rebuilds.
+  void notifyProfileChanged() {
+    if (!_profileTicks.isClosed) {
+      _profileTicks.add(null);
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchMyProfile(String uid) async {
+    try {
+      final row = await _client
+          .from('profiles')
+          .select(
+            'classroom_id, classroom_name, classroom_access_code, display_name, photo_url, email, role',
+          )
+          .eq('id', uid)
+          .maybeSingle();
+      if (row == null) return null;
+      return Map<String, dynamic>.from(row as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Initial fetch + refresh whenever [notifyProfileChanged] is called.
+  Stream<Map<String, dynamic>?> watchMyProfile(String uid) async* {
+    yield await fetchMyProfile(uid);
+    await for (final _ in _profileTicks.stream) {
+      yield await fetchMyProfile(uid);
+    }
+  }
 
   Future<ClassroomInfo> joinByAccessCode(String rawCode) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = AuthService().currentUser;
     if (user == null) {
       throw ClassroomJoinException(
         'You need to be signed in to join a classroom.',
@@ -61,103 +89,192 @@ class ClassroomService {
       throw ClassroomJoinException('Enter or scan a class code first.');
     }
 
-    final query = await _db
-        .collection('classes')
-        .where('access_code', isEqualTo: code)
-        .limit(1)
-        .get();
+    final rows = await _client
+        .from('classes')
+        .select(
+          'id, section_name, grade_level, subject, access_code, teacher_id',
+        )
+        .eq('access_code', code)
+        .limit(1);
 
-    if (query.docs.isEmpty) {
+    final list = rows as List;
+    if (list.isEmpty) {
       throw ClassroomJoinException('No classroom found for code "$code".');
     }
 
-    final classRef = query.docs.first.reference;
+    final row = Map<String, dynamic>.from(list.first as Map);
+    final classId = row['id'] as String;
+    final sectionName = row['section_name'] as String? ?? '';
+    final gradeLevel = row['grade_level'] as String? ?? '';
+    final subject = row['subject'] as String? ?? '';
+    final accessCode = row['access_code'] as String? ?? code;
+    final teacherUid = row['teacher_id'] as String? ?? '';
 
-    // Transaction so two students joining at once can't clobber each
-    // other's append to the same students array.
-    final classData = await _db.runTransaction<Map<String, dynamic>>((
-      tx,
-    ) async {
-      final snap = await tx.get(classRef);
-      final data = Map<String, dynamic>.from(snap.data() ?? {});
-      final students = List<Map<String, dynamic>>.from(
-        (data['students'] as List?)?.map(
-              (s) => Map<String, dynamic>.from(s as Map),
-            ) ??
-            [],
+    final existing = await fetchMyMembership(classId);
+    final existingStatus = existing?['status'] as String?;
+    if (existingStatus == 'approved') {
+      final info = ClassroomInfo(
+        id: classId,
+        sectionName: sectionName,
+        gradeLevel: gradeLevel,
+        subject: subject,
+        accessCode: accessCode,
+        teacherUid: teacherUid,
+        membershipStatus: 'approved',
       );
+      await activateApprovedClassroom(info);
+      return info;
+    }
 
-      final alreadyEnrolled = students.any((s) => s['uid'] == user.uid);
-      if (!alreadyEnrolled) {
-        students.add({
-          'uid': user.uid,
-          'name': user.displayName ?? user.email ?? 'Student',
-          'joined_at': DateTime.now().toIso8601String(),
+    // Request membership — stays pending until teacher approves
+    try {
+      await _client.from('class_members').upsert({
+        'class_id': classId,
+        'user_id': user.id,
+        'role': 'student',
+        'status': 'pending',
+        'joined_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'class_id,user_id');
+    } catch (e) {
+      try {
+        await _client.from('class_members').insert({
+          'class_id': classId,
+          'user_id': user.id,
+          'role': 'student',
+          'status': 'pending',
+          'joined_at': DateTime.now().toUtc().toIso8601String(),
         });
-        tx.update(classRef, {'students': students});
+      } catch (e2) {
+        throw ClassroomJoinException(
+          'Could not request to join class. Run 014_class_join_approval.sql in Supabase. Details: $e2',
+        );
       }
-      return data;
-    });
+    }
 
-    await _db.collection('users').doc(user.uid).set({
-      'classroomId': classRef.id,
-      'classroomName': classData['section_name'],
-      'classroomAccessCode': classData['access_code'],
-      'classroomJoinedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // Do NOT set profiles.classroom_id until approved
+    notifyProfileChanged();
 
     return ClassroomInfo(
-      id: classRef.id,
-      sectionName: classData['section_name'] as String? ?? 'Untitled Section',
-      gradeLevel: classData['grade_level'] as String? ?? '',
-      subject: classData['subject'] as String? ?? '',
-      accessCode: classData['access_code'] as String? ?? '',
-      teacherUid: classData['teacher_uid'] as String? ?? '',
+      id: classId,
+      sectionName: sectionName,
+      gradeLevel: gradeLevel,
+      subject: subject,
+      accessCode: accessCode,
+      teacherUid: teacherUid,
+      membershipStatus: 'pending',
     );
   }
 
-  /// Removes the current user from their classroom's roster and clears
-  /// the pointer on their profile doc — this is what sends AuthGate back
-  /// to the restricted, profile-only state.
+  /// Pending membership row for the signed-in student (if any).
+  Future<Map<String, dynamic>?> fetchMyPendingMembership() async {
+    final user = AuthService().currentUser;
+    if (user == null) return null;
+    try {
+      final row = await _client
+          .from('class_members')
+          .select(
+            'class_id, status, role, classes(id, section_name, grade_level, subject, access_code, teacher_id)',
+          )
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+      if (row == null) return null;
+      return Map<String, dynamic>.from(row as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Any membership for user (pending/approved/rejected) for a class.
+  Future<Map<String, dynamic>?> fetchMyMembership(String classId) async {
+    final user = AuthService().currentUser;
+    if (user == null) return null;
+    try {
+      final row = await _client
+          .from('class_members')
+          .select('class_id, status, role')
+          .eq('user_id', user.id)
+          .eq('class_id', classId)
+          .maybeSingle();
+      if (row == null) return null;
+      return Map<String, dynamic>.from(row as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Stream<Map<String, dynamic>?> watchMyMemberships() {
+    final user = AuthService().currentUser;
+    if (user == null) {
+      return const Stream.empty();
+    }
+    return _client
+        .from('class_members')
+        .stream(primaryKey: ['class_id', 'user_id'])
+        .eq('user_id', user.id)
+        .map((rows) {
+      if (rows is! List || rows.isEmpty) return null;
+      // Prefer approved, else pending, else first
+      final list = rows.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      Map<String, dynamic>? approved;
+      Map<String, dynamic>? pending;
+      for (final m in list) {
+        final s = m['status'] as String? ?? '';
+        if (s == 'approved') approved = m;
+        if (s == 'pending') pending = m;
+      }
+      return approved ?? pending ?? list.first;
+    });
+  }
+
+  /// After teacher approves, attach class to profile so AuthGate opens MainScreen.
+  Future<void> activateApprovedClassroom(ClassroomInfo info) async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+    await _client.from('profiles').update({
+      'classroom_id': info.id,
+      'classroom_name': info.sectionName,
+      'classroom_access_code': info.accessCode,
+      'classroom_joined_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', user.id);
+    notifyProfileChanged();
+  }
+
+  Future<void> cancelJoinRequest(String classId) async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+    await _client
+        .from('class_members')
+        .delete()
+        .eq('class_id', classId)
+        .eq('user_id', user.id);
+    notifyProfileChanged();
+  }
+
   Future<void> leaveClassroom() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = AuthService().currentUser;
     if (user == null) return;
 
-    final userRef = _db.collection('users').doc(user.uid);
-    final userSnap = await userRef.get();
-    final classroomId = userSnap.data()?['classroomId'] as String?;
+    final profile = await fetchMyProfile(user.id);
+    final classroomId = profile?['classroom_id'] as String?;
 
-    if (classroomId != null) {
-      final classRef = _db.collection('classes').doc(classroomId);
-      await _db.runTransaction((tx) async {
-        final snap = await tx.get(classRef);
-        if (!snap.exists) return;
-        final students = List<Map<String, dynamic>>.from(
-          (snap.data()?['students'] as List?)?.map(
-                (s) => Map<String, dynamic>.from(s as Map),
-              ) ??
-              [],
-        );
-        students.removeWhere((s) => s['uid'] == user.uid);
-        tx.update(classRef, {'students': students});
-      });
+    if (classroomId != null && classroomId.isNotEmpty) {
+      try {
+        await _client
+            .from('class_members')
+            .delete()
+            .eq('class_id', classroomId)
+            .eq('user_id', user.id);
+      } catch (_) {}
     }
 
-    await userRef.set({
-      'classroomId': FieldValue.delete(),
-      'classroomName': FieldValue.delete(),
-      'classroomAccessCode': FieldValue.delete(),
-      'classroomJoinedAt': FieldValue.delete(),
-    }, SetOptions(merge: true));
-  }
+    await _client.from('profiles').update({
+      'classroom_id': null,
+      'classroom_name': null,
+      'classroom_access_code': null,
+      'classroom_joined_at': null,
+    }).eq('id', user.id);
 
-  /// Live stream of the current user's profile doc — AuthGate and
-  /// ProfileScreen both watch this to react instantly to a join/leave.
-  Stream<DocumentSnapshot<Map<String, dynamic>>> watchMyProfile(String uid) {
-    return _db.collection('users').doc(uid).snapshots();
-  }
-
-  Stream<DocumentSnapshot<Map<String, dynamic>>> getStudents(String uid) {
-    return _db.collection('classes').doc(uid).snapshots();
+    notifyProfileChanged();
   }
 }

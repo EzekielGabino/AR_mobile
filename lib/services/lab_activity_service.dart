@@ -1,43 +1,51 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:scilense_ar_mobile/models/lab_activity_remote.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Loads lab activities from Firestore collection [labActivities].
+/// Loads practice lab activities from Supabase [practice_lab_activities].
 class LabActivityService {
-  LabActivityService({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  LabActivityService();
 
-  final FirebaseFirestore _db;
+  SupabaseClient get _client => SupabaseService.client;
 
-  static const String collectionName = 'practiceLabActivities';
+  static const String tableName = 'practice_lab_activities';
 
-  CollectionReference<Map<String, dynamic>> get _col =>
-      _db.collection(collectionName);
-
-  /// All activities (list screen).
+  /// All practice activities (list screen).
   Future<List<LabActivityRemote>> fetchAll() async {
-    final snap = await _col.get();
-    return snap.docs.map(LabActivityRemote.fromFirestore).toList();
+    final rows = await _client
+        .from(tableName)
+        .select()
+        .order('title', ascending: true);
+    return (rows as List)
+        .map(
+          (e) => LabActivityRemote.fromSupabase(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
+        .toList();
   }
 
-  /// Stream for live list updates.
-  Stream<List<LabActivityRemote>> watchAll() {
-    return _col.snapshots().map(
-      (snap) => snap.docs.map(LabActivityRemote.fromFirestore).toList(),
+  /// One-shot stream for widgets that still use StreamBuilder.
+  /// Does not require Supabase Realtime on the table.
+  Stream<List<LabActivityRemote>> watchAll() async* {
+    yield await fetchAll();
+  }
+
+  /// Single activity by id (UUID string).
+  Future<LabActivityRemote?> fetchById(String id) async {
+    if (id.isEmpty) return null;
+    final row = await _client
+        .from(tableName)
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+    if (row == null) return null;
+    return LabActivityRemote.fromSupabase(
+      Map<String, dynamic>.from(row),
     );
   }
 
-  /// Single activity by document id.
-  Future<LabActivityRemote?> fetchById(String id) async {
-    final doc = await _col.doc(id).get();
-    if (!doc.exists) return null;
-    return LabActivityRemote.fromFirestore(doc);
-  }
-
-  /// Stream a single activity.
-  Stream<LabActivityRemote?> watchById(String id) {
-    return _col.doc(id).snapshots().map((doc) {
-      if (!doc.exists) return null;
-      return LabActivityRemote.fromFirestore(doc);
-    });
+  Stream<LabActivityRemote?> watchById(String id) async* {
+    yield await fetchById(id);
   }
 }

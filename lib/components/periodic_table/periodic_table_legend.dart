@@ -1,100 +1,5 @@
-// import 'package:flutter/material.dart';
-
-// class PeriodicTableLegend extends StatelessWidget {
-//   const PeriodicTableLegend({super.key});
-
-//   Widget legendItem(Color color, String text) {
-//     return SizedBox(
-//       width: 130, // Slightly reduced width to ensure 2 neat columns on mobile
-//       child: Padding(
-//         padding: const EdgeInsets.symmetric(vertical: 2),
-//         child: Row(
-//           mainAxisSize: MainAxisSize.min,
-//           children: [
-//             Container(
-//               width: 12,
-//               height: 12,
-//               decoration: BoxDecoration(
-//                 color: color,
-//                 borderRadius: BorderRadius.circular(3),
-//               ),
-//             ),
-//             const SizedBox(width: 6),
-//             Expanded(
-//               // Using Expanded prevents text from overflowing horizontally
-//               child: Text(
-//                 text,
-//                 style: const TextStyle(fontSize: 11),
-//                 overflow: TextOverflow.ellipsis,
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Card(
-//       color: Colors.white,
-//       elevation: 2,
-//       margin: const EdgeInsets.only(bottom: 10),
-//       child: Padding(
-//         padding: const EdgeInsets.all(12),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             // ==========================
-//             // Title Header
-//             // ==========================
-//             const Text(
-//               "Legend",
-//               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-//             ),
-//             const SizedBox(height: 10),
-
-//             // ==========================
-//             // Body Content
-//             // ==========================
-//             Row(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 // ==========================
-//                 // Categories Key
-//                 // ==========================
-//                 Expanded(
-//                   // Prevents right boundary overflow across screen widths
-//                   child: Wrap(
-//                     spacing: 8,
-//                     runSpacing: 4,
-//                     children: [
-//                       legendItem(Colors.red.shade300, "Alkali"),
-//                       legendItem(Colors.orange.shade300, "Alkaline"),
-//                       legendItem(Colors.amber.shade500, "Transition"),
-//                       legendItem(Colors.lightBlue.shade300, "Post-transition"),
-//                       legendItem(Colors.green.shade400, "Metalloid"),
-//                       legendItem(Colors.teal.shade400, "Nonmetal"),
-//                       legendItem(Colors.purple.shade300, "Halogen"),
-//                       legendItem(Colors.pink.shade300, "Noble Gas"),
-//                       legendItem(Colors.cyan.shade400, "Lanthanide"),
-//                       legendItem(Colors.deepPurple.shade300, "Actinide"),
-//                       legendItem(Colors.blueGrey.shade300, "Unknown"),
-//                     ],
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-//
-
 import 'package:flutter/material.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 class PeriodicTableLegend extends StatefulWidget {
   const PeriodicTableLegend({super.key});
@@ -159,6 +64,7 @@ class _PeriodicTableLegendState extends State<PeriodicTableLegend> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.background),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0D47A1).withOpacity(0.08),
@@ -168,7 +74,7 @@ class _PeriodicTableLegendState extends State<PeriodicTableLegend> {
         ],
       ),
       child: Card(
-        color: Colors.white,
+        color: AppColors.background,
         elevation: 0,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -195,11 +101,7 @@ class _PeriodicTableLegendState extends State<PeriodicTableLegend> {
                   horizontal: 16,
                 ),
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  gradient: AppColors.headerGradient,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
