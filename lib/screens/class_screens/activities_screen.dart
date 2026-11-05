@@ -10,6 +10,12 @@ import 'package:scilense_ar_mobile/services/auth_service.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+const Color _success = Color(0xFF2E9E5B);
+
 /// Class activities from Supabase `class_activities` (published only for students).
 class ActivitiesSection extends StatefulWidget {
   final String classId;
@@ -232,25 +238,65 @@ class _ActivitiesSectionState extends State<ActivitiesSection>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        TabBar(
-          controller: _tabController,
-          labelColor: Theme.of(context).colorScheme.primary,
-          unselectedLabelColor: AppColors.primaryGray,
-          dividerColor: Colors.transparent,
-          dividerHeight: 0,
-          tabs: const [
-            Tab(text: 'To Do'),
-            Tab(text: 'Submitted'),
-          ],
+        // Visual only: white strip with a thin light-blue divider under the tabs
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+            ),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            labelColor: _royalBlue,
+            unselectedLabelColor: AppColors.primaryGray,
+            indicatorColor: _royalBlue,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            dividerColor: Colors.transparent,
+            dividerHeight: 0,
+            tabs: const [
+              Tab(text: 'To Do'),
+              Tab(text: 'Submitted'),
+            ],
+          ),
         ),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(color: _royalBlue),
+                )
               : _error != null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text('Error: $_error', textAlign: TextAlign.center),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 48,
+                          color: AppColors.safetyRed,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: $_error',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : Builder(
@@ -266,6 +312,7 @@ class _ActivitiesSectionState extends State<ActivitiesSection>
                       controller: _tabController,
                       children: [
                         RefreshIndicator(
+                          color: _royalBlue,
                           onRefresh: _load,
                           child: _ActivityList(
                             items: todo,
@@ -274,6 +321,7 @@ class _ActivitiesSectionState extends State<ActivitiesSection>
                           ),
                         ),
                         RefreshIndicator(
+                          color: _royalBlue,
                           onRefresh: _load,
                           child: _ActivityList(
                             items: done,
@@ -315,7 +363,39 @@ class _ActivityList extends StatelessWidget {
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.4,
-            child: Center(child: Text(emptyText)),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon inside a soft light-blue circle (decorative)
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: _lightBlue.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      submissionsById == null
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.inbox_outlined,
+                      size: 40,
+                      color: _periwinkle,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    emptyText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       );
@@ -323,18 +403,34 @@ class _ActivityList extends StatelessWidget {
 
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: items.length,
       itemBuilder: (_, index) {
         final data = items[index];
         final type = (data['type'] as String? ?? 'activity');
+        // Visual only (read-only): used to pick the icon/color of the date line
+        final bool isSubmitted =
+            submissionsById?[data['id'] as String?] != null;
 
         return Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Card(
+            // Visual only: white card, periwinkle glow, light-blue border, 16 px radius
+            margin: EdgeInsets.zero,
+            color: Colors.white,
+            elevation: 4,
+            shadowColor: _periwinkle.withValues(alpha: 0.30),
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+            ),
             child: InkWell(
               onTap: () => onTap(data),
+              splashColor: _periwinkle.withValues(alpha: 0.18),
+              highlightColor: _lightBlue.withValues(alpha: 0.12),
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -347,46 +443,112 @@ class _ActivityList extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Chip(
                           label: Text(type),
                           visualDensity: VisualDensity.compact,
+                          backgroundColor: _lightBlue.withValues(alpha: 0.35),
+                          side: BorderSide(
+                            color: _periwinkle.withValues(alpha: 0.6),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          avatar: Icon(
+                            type.toLowerCase() == 'lab'
+                                ? Icons.science_rounded
+                                : Icons.assignment_rounded,
+                            size: 16,
+                            color: _royalBlue,
+                          ),
+                          labelStyle: const TextStyle(
+                            color: _royalBlue,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      () {
-                        final sub = submissionsById?[data['id'] as String?];
-                        if (sub != null) {
-                          final when =
-                              sub['submitted_at'] ??
-                              sub['submittedAt'] ??
-                              sub['created_at'];
-                          return 'Submitted: ${_formatDate(when)}';
-                        }
-                        return 'Published: ${_formatDate(data['published_at'] ?? data['created_at'])}';
-                      }(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurface
-                            .withValues(alpha: 0.65),
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          isSubmitted
+                              ? Icons.check_circle_rounded
+                              : Icons.event_note_rounded,
+                          size: 16,
+                          color: isSubmitted ? _success : _periwinkle,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            () {
+                              final sub =
+                                  submissionsById?[data['id'] as String?];
+                              if (sub != null) {
+                                final when =
+                                    sub['submitted_at'] ??
+                                    sub['submittedAt'] ??
+                                    sub['created_at'];
+                                return 'Submitted: ${_formatDate(when)}';
+                              }
+                              return 'Published: ${_formatDate(data['published_at'] ?? data['created_at'])}';
+                            }(),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.65),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Deadline: ${_formatDeadline(data['dueDate'], data['dueTime'])}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurface
-                            .withValues(alpha: 0.65),
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule_rounded,
+                          size: 16,
+                          color: _periwinkle,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Deadline: ${_formatDeadline(data['dueDate'], data['dueTime'])}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.65),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const Align(
+                    const SizedBox(height: 8),
+                    // Gradient arrow button (decorative; the whole card is the tap target)
+                    Align(
                       alignment: Alignment.bottomRight,
-                      child: Icon(Icons.arrow_forward),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_royalBlue, _periwinkle],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -1,207 +1,294 @@
 import 'package:flutter/material.dart';
-import 'package:scilense_ar_mobile/models/experiment_models.dart';
+import 'package:scilense_ar_mobile/services/student_notification_service.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
-class QuizResultsScreen extends StatelessWidget {
-  const QuizResultsScreen({
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+const Color _success = Color(0xFF2E9E5B);
+
+/// Student in-app notifications: announcements, published activities, returns.
+class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({
     super.key,
-    required this.questions,
-    required this.answers,
+    required this.classId,
+    this.onOpenStream,
+    this.onOpenActivities,
   });
 
-  final List<QuizQuestion> questions;
-  final Map<int, String> answers;
+  final String classId;
+  final VoidCallback? onOpenStream;
+  final VoidCallback? onOpenActivities;
 
-  int get _score {
-    var correct = 0;
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
 
-    for (final q in questions) {
-      if (answers[q.order] == q.correctOption) {
-        correct++;
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final _service = StudentNotificationService();
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await _service.listMine();
+      // Opening the alerts screen counts as reading all notifications
+      final hasUnread = list.any((n) => n['read_at'] == null);
+      if (hasUnread) {
+        try {
+          await _service.markAllRead();
+          final now = DateTime.now().toUtc().toIso8601String();
+          for (final n in list) {
+            n['read_at'] ??= now;
+          }
+        } catch (_) {
+          // Still show the list even if mark-all fails
+        }
       }
+      if (!mounted) return;
+      setState(() {
+        _items = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  String _formatWhen(dynamic iso) {
+    if (iso == null) return '';
+    try {
+      final d = DateTime.parse(iso.toString()).toLocal();
+      return '${d.month}/${d.day} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso.toString();
+    }
+  }
+
+  IconData _iconFor(String type) {
+    switch (type) {
+      case 'activity_published':
+        return Icons.assignment;
+      case 'activity_returned':
+        return Icons.grading;
+      case 'announcement_posted':
+      default:
+        return Icons.campaign;
+    }
+  }
+
+  Future<void> _open(Map<String, dynamic> n) async {
+    final id = n['id'] as String?;
+    if (id != null && n['read_at'] == null) {
+      try {
+        await _service.markRead(id);
+        n['read_at'] = DateTime.now().toUtc().toIso8601String();
+        if (mounted) setState(() {});
+      } catch (_) {}
     }
 
-    return correct;
+    final type = (n['type'] as String?) ?? '';
+    if (!mounted) return;
+
+    // Stay inside MainScreen shell (bottom tabs) via callbacks
+    if (type == 'activity_published' || type == 'activity_returned') {
+      widget.onOpenActivities?.call();
+    } else {
+      widget.onOpenStream?.call();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final score = _score;
-    final total = questions.length;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quiz Results'),
-        automaticallyImplyLeading: false,
-      ),
-
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // ------------------------------------------------------------
-          // SCORE
-          // ------------------------------------------------------------
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const Icon(Icons.emoji_events, size: 64),
-
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Quiz Completed!',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Text(
-                    '$score / $total',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  const Text('Correct Answers'),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ------------------------------------------------------------
-          // ANSWER REVIEW
-          // ------------------------------------------------------------
-          const Text(
-            'Answer Review',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 8),
-
-          ...questions.asMap().entries.map((entry) {
-            final index = entry.key;
-            final question = entry.value;
-
-            final selectedAnswer = answers[question.order];
-            final isCorrect = selectedAnswer == question.correctOption;
-
-            final selectedOption = question.options
-                .where((option) => option.id == selectedAnswer)
-                .firstOrNull;
-
-            final correctOption = question.options
-                .where((option) => option.id == question.correctOption)
-                .firstOrNull;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
+      backgroundColor: AppColors.background,
+      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
+      appBar: AppBar(title: const Text('Alerts'), centerTitle: true),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: _royalBlue),
+            )
+          : _error != null
+          ? Center(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 48,
+                      color: AppColors.safetyRed,
+                    ),
+                    const SizedBox(height: 16),
                     Text(
-                      'Question ${index + 1}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    Text(question.prompt, style: const TextStyle(fontSize: 16)),
-
-                    const SizedBox(height: 12),
-
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          isCorrect ? Icons.check_circle : Icons.cancel,
-                          color: isCorrect ? Colors.green : Colors.red,
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        Expanded(
-                          child: Text(
-                            selectedOption != null
-                                ? 'Your answer: '
-                                      '${selectedOption.id.toUpperCase()}. '
-                                      '${selectedOption.text}'
-                                : 'Your answer: Not answered',
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    if (!isCorrect && correctOption != null) ...[
-                      const SizedBox(height: 8),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.info_outline, color: Colors.blue),
-
-                          const SizedBox(width: 8),
-
-                          Expanded(
-                            child: Text(
-                              'Correct answer: '
-                              '${correctOption.id.toUpperCase()}. '
-                              '${correctOption.text}',
-                            ),
-                          ),
-                        ],
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        height: 1.5,
                       ),
-                    ],
-
-                    if (question.explanation != null &&
-                        question.explanation!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-
-                      Text(
-                        question.explanation!,
-                        style: TextStyle(color: Colors.grey.shade700),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            );
-          }),
-
-          const SizedBox(height: 80),
-        ],
-      ),
-
-      // --------------------------------------------------------------
-      // DONE BUTTON
-      // --------------------------------------------------------------
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () {
-                // Return the student's answers directly to
-                // ClassLabActivityScreen.
-                Navigator.pop(context, Map<int, String>.from(answers));
-              },
-              child: const Text(
-                'Back to Activity',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+            )
+          : RefreshIndicator(
+              color: _royalBlue,
+              onRefresh: _load,
+              child: _items.isEmpty
+                  ? ListView(
+                      children: [
+                        const SizedBox(height: 120),
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Icon inside a soft light-blue circle (decorative)
+                              Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  color: _lightBlue.withValues(alpha: 0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_none_rounded,
+                                  size: 48,
+                                  color: _periwinkle,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  'No notifications yet.\n'
+                                  'Announcements, new activities, and returned work appear here.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, i) {
+                        final n = _items[i];
+                        final unread = n['read_at'] == null;
+                        final type = (n['type'] as String?) ?? '';
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: 8,
+                            left: 16,
+                            right: 16,
+                          ),
+                          child: Card(
+                            // Visual only: white card, glow, border, 16 px radius.
+                            // Unread cards get a stronger royal-blue border + light-blue tint.
+                            color: unread
+                                ? Color.alphaBlend(
+                                    _lightBlue.withValues(alpha: 0.18),
+                                    Colors.white,
+                                  )
+                                : Colors.white,
+                            elevation: 4,
+                            shadowColor: _periwinkle.withValues(alpha: 0.30),
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: unread
+                                    ? _periwinkle
+                                    : _lightBlue.withValues(alpha: 0.7),
+                                width: unread ? 1.5 : 1,
+                              ),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  // Gradient chip when unread, soft light-blue when read
+                                  gradient: unread
+                                      ? const LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [_royalBlue, _periwinkle],
+                                        )
+                                      : null,
+                                  color: unread
+                                      ? null
+                                      : _lightBlue.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  _iconFor(type),
+                                  size: 20,
+                                  color: unread ? Colors.white : _royalBlue,
+                                ),
+                              ),
+                              title: Text(
+                                (n['title'] as String?) ?? 'Notification',
+                                style: TextStyle(
+                                  fontWeight: unread
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              subtitle: Text(
+                                [
+                                  (n['body'] as String?) ?? '',
+                                  _formatWhen(n['created_at']),
+                                ].where((s) => s.isNotEmpty).join('\n'),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
+                              ),
+                              isThreeLine: true,
+                              trailing: unread
+                                  ? const Icon(
+                                      Icons.circle,
+                                      size: 10,
+                                      color: _royalBlue,
+                                    )
+                                  : null,
+                              onTap: () => _open(n),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

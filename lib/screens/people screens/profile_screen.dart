@@ -8,6 +8,12 @@ import 'package:scilense_ar_mobile/services/classroom_service.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _navy = Color(0xFF091540);
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+
 /// Profile / sign-in. Auth is Supabase (M2 Part A).
 /// Classroom join still uses ClassroomService (Firebase until M3).
 class ProfileScreen extends StatelessWidget {
@@ -23,6 +29,9 @@ class ProfileScreen extends StatelessWidget {
             SupabaseService.client.auth.currentUser;
 
         return Scaffold(
+          // Explicit theme background (same as AppTheme.scaffoldBackgroundColor)
+          backgroundColor: AppColors.background,
+          // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
           appBar: AppBar(
             title: const Text("Profile"),
             centerTitle: true,
@@ -66,13 +75,26 @@ class ProfileScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: ctx,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
+        // Visual only: white dialog, 16 px radius, navy title
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Sign out?',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         content: const Text(
           'You will need to sign in again to join a class and submit activities.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
+            style: TextButton.styleFrom(foregroundColor: _royalBlue),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
@@ -80,6 +102,9 @@ class ProfileScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Sign out'),
           ),
@@ -99,6 +124,57 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+/// Visual-only button wrapper: gradient + glow around a normal ElevatedButton.
+/// The onPressed callback is passed straight through.
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({required this.onPressed, required this.label});
+
+  final VoidCallback onPressed;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [_royalBlue, _periwinkle],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: _royalBlue.withValues(alpha: 0.30),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(56),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Signed-out: app mark + name, then Google sign-in.
 class _SignedOutBody extends StatelessWidget {
   const _SignedOutBody({required this.onSignIn});
@@ -114,18 +190,34 @@ class _SignedOutBody extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/branding/app_icon.png',
-                width: 112,
-                height: 112,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Icon(
-                  Icons.science_outlined,
-                  size: 96,
-                  color: AppColors.primary.withValues(alpha: 0.85),
+              // Soft glow behind the app mark (decorative)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _lightBlue.withValues(alpha: 0.8)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _periwinkle.withValues(alpha: 0.30),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/branding/app_icon.png',
+                  width: 112,
+                  height: 112,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.science_outlined,
+                    size: 96,
+                    color: AppColors.primary.withValues(alpha: 0.85),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               const Text(
                 'ScilenseAR',
                 style: TextStyle(
@@ -142,29 +234,15 @@ class _SignedOutBody extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
-                  height: 1.35,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: _GradientButton(
                   onPressed: onSignIn,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Sign in with Google',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  label: 'Sign in with Google',
                 ),
               ),
             ],
@@ -199,14 +277,14 @@ class _SignedInBody extends StatelessWidget {
             user.userMetadata?['avatar_url'] as String?;
 
         return ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           children: [
             _AccountCard(
               displayName: displayName,
               email: user.email,
               photoUrl: photoUrl,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             inClassroom
                 ? _ClassroomCard(
                     name: classroomName ?? 'Your Classroom',
@@ -238,19 +316,37 @@ class _SignedInBody extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Leave classroom?'),
+        // Visual only: white dialog, 16 px radius, navy title
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Leave classroom?',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         content: const Text(
           "You'll lose access to this class's activities until you "
           'rejoin with its code or QR.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
+            style: TextButton.styleFrom(foregroundColor: _royalBlue),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Leave'),
           ),
         ],
@@ -290,20 +386,40 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      // Visual only: white card, periwinkle glow, thin light-blue border, 16 px radius
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: _periwinkle.withValues(alpha: 0.30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: AppColors.primaryLight.withValues(alpha: 0.2),
-              backgroundImage:
-                  photoUrl != null ? NetworkImage(photoUrl!) : null,
-              child: photoUrl == null
-                  ? const Icon(Icons.person, color: AppColors.primary, size: 28)
-                  : null,
+            // Gradient ring around the avatar (decorative)
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_royalBlue, _periwinkle],
+                ),
+              ),
+              child: CircleAvatar(
+                radius: 28,
+                backgroundColor: _lightBlue.withValues(alpha: 0.35),
+                backgroundImage:
+                    photoUrl != null ? NetworkImage(photoUrl!) : null,
+                child: photoUrl == null
+                    ? const Icon(Icons.person, color: _royalBlue, size: 28)
+                    : null,
+              ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,6 +429,7 @@ class _AccountCard extends StatelessWidget {
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   if (email != null)
@@ -357,20 +474,40 @@ class _JoinClassroomCard extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: AppColors.headerGradient,
             borderRadius: BorderRadius.circular(16),
+            // Soft glow under the panel
+            boxShadow: [
+              BoxShadow(
+                color: _periwinkle.withValues(alpha: 0.30),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                hasPending ? Icons.hourglass_top : Icons.qr_code_scanner,
-                color: Colors.white,
-                size: 32,
+              // Icon chip (decorative)
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _lightBlue.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Icon(
+                  hasPending ? Icons.hourglass_top : Icons.qr_code_scanner,
+                  color: Colors.white,
+                  size: 32,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Text(
                 hasPending ? 'Join request pending' : 'Join Your Classroom',
                 style: const TextStyle(
@@ -379,19 +516,19 @@ class _JoinClassroomCard extends StatelessWidget {
                   fontSize: 18,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 hasPending
                     ? 'Your teacher has not approved this class yet. You can open the waiting screen anytime.'
                     : "Scan your teacher's QR code or enter the class code to "
                         'unlock experiments, quizzes, and equipment tracking.',
                 style: const TextStyle(
-                  color: Colors.white70,
+                  color: _lightBlue,
                   fontSize: 13,
-                  height: 1.4,
+                  height: 1.5,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -428,6 +565,15 @@ class _JoinClassroomCard extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.primaryDark,
+                    elevation: 0,
+                    minimumSize: const Size.fromHeight(56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -454,28 +600,88 @@ class _ClassroomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      // Visual only: white card, periwinkle glow, thin light-blue border, 16 px radius
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: _periwinkle.withValues(alpha: 0.30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Row(
+              children: [
+                // Gradient icon chip (decorative)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [_royalBlue, _periwinkle],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (code.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Code: $code',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
+              const SizedBox(height: 8),
+              // Monospace code on a light-blue chip
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: _lightBlue.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'Code: '),
+                      TextSpan(
+                        text: code,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w700,
+                          color: _royalBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             TextButton(
               onPressed: onLeave,
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
               child: const Text('Leave classroom'),
             ),
           ],

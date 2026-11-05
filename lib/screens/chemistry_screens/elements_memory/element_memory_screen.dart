@@ -5,6 +5,12 @@ import 'package:scilense_ar_mobile/models/element.dart';
 import 'package:scilense_ar_mobile/services/periodic_table_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _navy = Color(0xFF091540);
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+
 /// Prompt direction for a single fill-in question.
 enum _PromptType { symbolToName, nameToSymbol, numberToSymbol, numberToName }
 
@@ -210,6 +216,7 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
       appBar: AppBar(
         title: const Text('Element Memory'),
         centerTitle: true,
@@ -229,6 +236,12 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
               ),
             ),
         ],
+        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.primaryDark,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       body: _buildBody(),
     );
@@ -236,7 +249,7 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: _royalBlue));
     }
     if (_loadError != null) {
       return Center(
@@ -257,9 +270,15 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
     final q = _current!;
     final inFeedback = _lastCorrect != null;
 
+    // Visual only: accuracy derived from the existing counters (read-only)
+    final int totalAnswered = _correctCount + _missedCount;
+    final double accuracy = totalAnswered == 0
+        ? 0.0
+        : _correctCount / totalAnswered;
+
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -271,7 +290,34 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
                 fontSize: 13,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            // Accuracy progress bar (decorative, reads _correctCount/_missedCount only)
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: accuracy,
+                      minHeight: 8,
+                      color: _periwinkle,
+                      backgroundColor: _lightBlue.withValues(alpha: 0.45),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${(accuracy * 100).round()}%',
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _royalBlue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
             Expanded(
               child: Center(
                 child: SingleChildScrollView(
@@ -281,7 +327,7 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _PromptCard(prompt: q.prompt),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
                         if (!inFeedback) ...[
                           TextField(
                             controller: _inputController,
@@ -289,17 +335,48 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
                             textInputAction: TextInputAction.done,
                             textCapitalization: TextCapitalization.sentences,
                             autocorrect: false,
+                            // Monospace for symbols / element names being typed
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
                             decoration: InputDecoration(
                               labelText: q.hintLabel,
+                              labelStyle: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
+                              floatingLabelStyle: const TextStyle(
+                                color: _royalBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.edit_rounded,
+                                color: _periwinkle,
+                              ),
                               filled: true,
                               fillColor: AppColors.cardBackground,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: _lightBlue.withValues(alpha: 0.9),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: _lightBlue.withValues(alpha: 0.9),
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
-                                  color: AppColors.primary,
+                                  color: _royalBlue,
                                   width: 2,
                                 ),
                               ),
@@ -307,23 +384,10 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
                             onSubmitted: (_) => _submit(),
                           ),
                           const SizedBox(height: 16),
-                          FilledButton(
+                          _GradientButton(
                             onPressed: _submit,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Submit',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            label: 'Submit',
+                            colors: const [_royalBlue, _periwinkle],
                           ),
                         ] else ...[
                           _FeedbackPanel(
@@ -332,23 +396,10 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
                             userAnswer: _inputController.text.trim(),
                           ),
                           const SizedBox(height: 16),
-                          FilledButton(
+                          _GradientButton(
                             onPressed: _nextQuestion,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primaryDark,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'Next',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            label: 'Next',
+                            colors: const [_navy, _royalBlue],
                           ),
                         ],
                       ],
@@ -364,6 +415,58 @@ class _ElementMemoryScreenState extends State<ElementMemoryScreen> {
   }
 }
 
+/// Visual-only button wrapper: gradient + glow around a normal FilledButton.
+/// The onPressed callback is passed straight through to the FilledButton.
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({
+    required this.onPressed,
+    required this.label,
+    required this.colors,
+  });
+
+  final VoidCallback onPressed;
+  final String label;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: colors,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: _royalBlue.withValues(alpha: 0.30),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(56),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
 class _PromptCard extends StatelessWidget {
   const _PromptCard({required this.prompt});
 
@@ -373,20 +476,43 @@ class _PromptCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.cardBackground,
-      elevation: 2,
-      shadowColor: AppColors.primaryDark.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      shadowColor: _periwinkle.withValues(alpha: 0.30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        child: Text(
-          prompt,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-            height: 1.3,
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Friendly icon chip (decorative)
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _lightBlue.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.science_rounded,
+                size: 24,
+                color: _royalBlue,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              prompt,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                height: 1.3,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -409,51 +535,90 @@ class _FeedbackPanel extends StatelessWidget {
     final color = correct ? const Color(0xFF2E7D32) : AppColors.safetyRed;
     final bg = correct ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+    // Light entrance animation (visual only)
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.scale(scale: 0.96 + 0.04 * value, child: child),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(correct ? Icons.check_circle : Icons.cancel, color: color),
-              const SizedBox(width: 8),
-              Text(
-                correct ? 'Correct' : 'Incorrect',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  correct ? Icons.check_circle : Icons.cancel,
                   color: color,
+                  size: 28,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  correct ? 'Correct' : 'Incorrect',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+            if (!correct) ...[
+              const SizedBox(height: 8),
+              if (userAnswer.isNotEmpty)
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'Your answer: '),
+                      // Monospace for the typed value
+                      TextSpan(
+                        text: userAnswer,
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ],
+                  ),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: 'Correct answer: '),
+                    // Monospace for the expected symbol / name
+                    TextSpan(
+                      text: expected,
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                  ],
+                ),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
-          ),
-          if (!correct) ...[
-            const SizedBox(height: 10),
-            if (userAnswer.isNotEmpty)
-              Text(
-                'Your answer: $userAnswer',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            const SizedBox(height: 4),
-            Text(
-              'Correct answer: $expected',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

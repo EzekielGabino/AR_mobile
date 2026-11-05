@@ -347,7 +347,7 @@ class _PeriodicTableScreenState extends State<PeriodicTableScreen>
                       ],
                     ),
                     child: Card(
-                      color: AppColors.accent,
+                      color: AppColors.background,
                       elevation: 0,
                       clipBehavior: Clip.antiAlias,
                       shape: RoundedRectangleBorder(

@@ -3,6 +3,11 @@ import 'package:scilense_ar_mobile/components/profile_app_bar_button.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+
 class PeopleScreen extends StatefulWidget {
   final String classUid;
   PeopleScreen({super.key, required this.classUid});
@@ -100,6 +105,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
       appBar: AppBar(
         title: const Text('Class members'),
         centerTitle: true,
@@ -109,7 +115,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: _royalBlue),
+            )
           : _error != null
               ? Center(
                   child: Padding(
@@ -117,23 +125,48 @@ class _PeopleScreenState extends State<PeopleScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 48,
+                          color: AppColors.safetyRed,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           _error!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _load, child: const Text('Retry')),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: _load,
+                          // Visual only: royal blue button, 12 px radius, easy to tap
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _royalBlue,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(120, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: const Text('Retry'),
+                        ),
                       ],
                     ),
                   ),
                 )
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: AppColors.primary,
+                  color: _royalBlue,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     children: [
                       const _SectionHeader(
                         title: 'Teacher',
@@ -146,7 +179,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         subtitle: 'Class teacher',
                         emphasized: true,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _SectionHeader(
                         title: 'Students',
                         trailing: '${students.length}',
@@ -155,14 +188,43 @@ class _PeopleScreenState extends State<PeopleScreen> {
                       if (students.isEmpty)
                         Material(
                           color: AppColors.cardBackground,
-                          borderRadius: BorderRadius.circular(16),
-                          elevation: 1,
-                          child: const Padding(
-                            padding: EdgeInsets.all(24),
+                          elevation: 4,
+                          shadowColor: _periwinkle.withValues(alpha: 0.30),
+                          // shape replaces borderRadius so a thin border can be added
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _lightBlue.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
                             child: Center(
-                              child: Text(
-                                'No students in this class yet.',
-                                style: TextStyle(color: AppColors.textSecondary),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Icon inside a soft light-blue circle (decorative)
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: _lightBlue.withValues(alpha: 0.35),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.groups_outlined,
+                                      size: 40,
+                                      color: _periwinkle,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'No students in this class yet.',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -174,7 +236,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                           final photo = user['photo_url'] as String?;
                           final email = user['email'] as String?;
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(bottom: 8),
                             child: _MemberCard(
                               name: name,
                               photoUrl: photo ?? '',
@@ -213,15 +275,17 @@ class _SectionHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
             decoration: BoxDecoration(
-              color: AppColors.accentSoft.withValues(alpha: 0.65),
-              borderRadius: BorderRadius.circular(20),
+              color: _lightBlue.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: _periwinkle.withValues(alpha: 0.6)),
             ),
             child: Text(
               trailing!,
               style: const TextStyle(
+                fontFamily: 'monospace',
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
-                color: AppColors.primaryDark,
+                color: _royalBlue,
               ),
             ),
           ),
@@ -250,34 +314,57 @@ class _MemberCard extends StatelessWidget {
 
     return Material(
       color: AppColors.cardBackground,
-      elevation: emphasized ? 3 : 1,
-      shadowColor: AppColors.primaryDark.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
+      elevation: emphasized ? 6 : 4,
+      shadowColor: _periwinkle.withValues(alpha: emphasized ? 0.40 : 0.30),
+      // shape replaces borderRadius so a thin border can be added
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: emphasized
+              ? _periwinkle
+              : _lightBlue.withValues(alpha: 0.7),
+          width: emphasized ? 1.5 : 1,
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: emphasized
-            ? BoxDecoration(
+            ? const BoxDecoration(
                 border: Border(
-                  left: BorderSide(color: AppColors.primary, width: 4),
+                  left: BorderSide(color: _royalBlue, width: 4),
                 ),
               )
             : null,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: emphasized ? 26 : 22,
-                backgroundColor: AppColors.accentSoft,
-                backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
-                child: hasPhoto
-                    ? null
-                    : Icon(
-                        emphasized ? Icons.school_outlined : Icons.person_outline,
-                        color: AppColors.primary,
-                      ),
+              // Gradient ring around the avatar (decorative)
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_royalBlue, _periwinkle],
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: emphasized ? 26 : 22,
+                  backgroundColor: _lightBlue.withValues(alpha: 0.35),
+                  backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+                  child: hasPhoto
+                      ? null
+                      : Icon(
+                          emphasized
+                              ? Icons.school_outlined
+                              : Icons.person_outline,
+                          color: _royalBlue,
+                        ),
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

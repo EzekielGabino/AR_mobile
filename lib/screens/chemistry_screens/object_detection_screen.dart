@@ -1,10 +1,12 @@
 import 'dart:typed_data';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:scilense_ar_mobile/components/object_detection&sample_experiment/box_painter.dart';
 import 'package:scilense_ar_mobile/components/object_detection&sample_experiment/detection_overlay_info.dart';
 import 'package:scilense_ar_mobile/services/detection_service.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 /// Free-play object detection — no Experiment, no guided steps, no
 /// equipment gating. Live camera + continuous throttled detection while
@@ -176,6 +178,12 @@ class _ObjectDetectionScreenState extends State<ObjectDetectionScreen> {
       appBar: AppBar(
         title: const Text('Live Object Detection'),
         centerTitle: true,
+        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.primaryDark,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {

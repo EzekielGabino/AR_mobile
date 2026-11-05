@@ -5,6 +5,11 @@ import 'package:scilense_ar_mobile/theme/app_theme.dart';
 import '../../../models/lab_equipment.dart';
 import 'equipment_detail_screen.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+
 class EquipmentGalleryScreen extends StatefulWidget {
   const EquipmentGalleryScreen({super.key});
 
@@ -34,6 +39,8 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Explicit theme background (same as AppTheme.scaffoldBackgroundColor)
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -66,7 +73,8 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
                     child: Icon(
                       Icons.biotech_outlined,
                       size: 72,
-                      color: Colors.white.withValues(alpha: 0.18),
+                      // Light-blue tint so the watermark matches the palette
+                      color: _lightBlue.withValues(alpha: 0.22),
                     ),
                   ),
                 ),
@@ -75,20 +83,20 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
           ),
           SliverToBoxAdapter(child: _buildSearchBar()),
           SliverToBoxAdapter(child: _buildCategoryChips()),
-          const SliverToBoxAdapter(child: SizedBox(height: 4)),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           _filtered.isEmpty
               ? const SliverFillRemaining(
                   hasScrollBody: false,
                   child: _EmptyState(),
                 )
               : SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
                           childAspectRatio: 0.78,
                         ),
                     delegate: SliverChildBuilderDelegate(
@@ -105,47 +113,60 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-      child: TextField(
-        style: const TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      // Visual only: soft periwinkle glow around the field
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: _periwinkle.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        cursorColor: AppColors.accent,
-        decoration: InputDecoration(
-          hintText: 'Search equipment...',
-          hintStyle: TextStyle(
-            color: AppColors.textSecondary.withValues(alpha: 0.85),
+        child: TextField(
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
-          prefixIcon: const Icon(Icons.search, color: AppColors.primaryLight),
-          filled: true,
-          fillColor: AppColors.cardBackground,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: AppColors.primaryLight.withValues(alpha: 0.4),
+          cursorColor: AppColors.accent,
+          decoration: InputDecoration(
+            hintText: 'Search equipment...',
+            hintStyle: TextStyle(
+              color: AppColors.textSecondary.withValues(alpha: 0.85),
+            ),
+            prefixIcon: const Icon(Icons.search, color: _periwinkle),
+            filled: true,
+            fillColor: AppColors.cardBackground,
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: _lightBlue.withValues(alpha: 0.8),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: _lightBlue.withValues(alpha: 0.8),
+              ),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+              borderSide: BorderSide(color: _royalBlue, width: 1.5),
             ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: AppColors.primaryLight.withValues(alpha: 0.4),
-            ),
-          ),
-          focusedBorder: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
-            borderSide: BorderSide(color: AppColors.primaryLight, width: 1.5),
-          ),
+          onChanged: (value) => setState(() => _query = value),
         ),
-        onChanged: (value) => setState(() => _query = value),
       ),
     );
   }
 
   Widget _buildCategoryChips() {
     return SizedBox(
-      height: 46,
+      height: 48,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -160,7 +181,7 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
           final labelColor =
               selected ? Colors.white : AppColors.textPrimary;
           final iconColor =
-              selected ? Colors.white : AppColors.primary;
+              selected ? Colors.white : _royalBlue;
           return ChoiceChip(
             showCheckmark: false,
             selected: selected,
@@ -168,17 +189,17 @@ class _EquipmentGalleryScreenState extends State<EquipmentGalleryScreen> {
             // M3: explicit state colors (old selectedColor/backgroundColor are ignored)
             color: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return AppColors.primary;
+                return _royalBlue;
               }
               return Colors.white;
             }),
             side: BorderSide(
               color: selected
-                  ? AppColors.primaryLight
-                  : AppColors.primaryLight.withValues(alpha: 0.7),
+                  ? _periwinkle
+                  : _lightBlue.withValues(alpha: 0.9),
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
             ),
             avatar: Icon(icon, size: 18, color: iconColor),
             label: Text(
@@ -206,12 +227,21 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 56,
-              color: AppColors.primaryLight,
+            // Icon inside a soft light-blue circle (decorative)
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: _lightBlue.withValues(alpha: 0.35),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                size: 56,
+                color: _periwinkle,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             const Text(
               'No equipment found',
               style: TextStyle(
@@ -220,7 +250,7 @@ class _EmptyState extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             const Text(
               'Try a different keyword or category.',
               style: TextStyle(color: AppColors.textSecondary),
@@ -240,7 +270,18 @@ class _EquipmentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      // Visual only: white card, periwinkle glow, thin light-blue border, 16 px radius
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: _periwinkle.withValues(alpha: 0.30),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+      ),
       child: InkWell(
+        splashColor: _periwinkle.withValues(alpha: 0.18),
+        highlightColor: _lightBlue.withValues(alpha: 0.12),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -255,12 +296,14 @@ class _EquipmentTile extends StatelessWidget {
               child: LabEquipmentImage(
                 equipment: equipment,
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(18),
+                  top: Radius.circular(16),
                 ),
               ),
             ),
+            // Thin divider between photo and text
+            Container(height: 1, color: _lightBlue.withValues(alpha: 0.6)),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -270,13 +313,13 @@ class _EquipmentTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       Icon(
                         CategoryStyle.iconFor(equipment.category),
-                        size: 13,
-                        color: AppColors.primary,
+                        size: 14,
+                        color: _royalBlue,
                       ),
                       const SizedBox(width: 4),
                       Expanded(

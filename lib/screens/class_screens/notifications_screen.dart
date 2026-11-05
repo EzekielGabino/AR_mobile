@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/services/student_notification_service.dart';
+import 'package:scilense_ar_mobile/theme/app_theme.dart';
+
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+const Color _success = Color(0xFF2E9E5B);
 
 /// Student in-app notifications: announcements, published activities, returns.
 class NotificationsScreen extends StatefulWidget {
@@ -110,22 +117,77 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
+      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
       appBar: AppBar(title: const Text('Alerts'), centerTitle: true),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: _royalBlue),
+            )
           : _error != null
-          ? Center(child: Text(_error!))
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 48,
+                      color: AppColors.safetyRed,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : RefreshIndicator(
+              color: _royalBlue,
               onRefresh: _load,
               child: _items.isEmpty
                   ? ListView(
-                      children: const [
-                        SizedBox(height: 120),
+                      children: [
+                        const SizedBox(height: 120),
                         Center(
-                          child: Text(
-                            'No notifications yet.\n'
-                            'Announcements, new activities, and returned work appear here.',
-                            textAlign: TextAlign.center,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Icon inside a soft light-blue circle (decorative)
+                              Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  color: _lightBlue.withValues(alpha: 0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_none_rounded,
+                                  size: 48,
+                                  color: _periwinkle,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  'No notifications yet.\n'
+                                  'Announcements, new activities, and returned work appear here.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -141,16 +203,57 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(
                             bottom: 8,
-                            left: 8,
-                            right: 8,
+                            left: 16,
+                            right: 16,
                           ),
                           child: Card(
+                            // Visual only: white card, glow, border, 16 px radius.
+                            // Unread cards get a stronger royal-blue border + light-blue tint.
+                            color: unread
+                                ? Color.alphaBlend(
+                                    _lightBlue.withValues(alpha: 0.18),
+                                    Colors.white,
+                                  )
+                                : Colors.white,
+                            elevation: 4,
+                            shadowColor: _periwinkle.withValues(alpha: 0.30),
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: unread
+                                    ? _periwinkle
+                                    : _lightBlue.withValues(alpha: 0.7),
+                                width: unread ? 1.5 : 1,
+                              ),
+                            ),
                             child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: unread
-                                    ? Colors.indigo.shade100
-                                    : Colors.grey.shade200,
-                                child: Icon(_iconFor(type), size: 20),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  // Gradient chip when unread, soft light-blue when read
+                                  gradient: unread
+                                      ? const LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [_royalBlue, _periwinkle],
+                                        )
+                                      : null,
+                                  color: unread
+                                      ? null
+                                      : _lightBlue.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  _iconFor(type),
+                                  size: 20,
+                                  color: unread ? Colors.white : _royalBlue,
+                                ),
                               ),
                               title: Text(
                                 (n['title'] as String?) ?? 'Notification',
@@ -158,6 +261,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   fontWeight: unread
                                       ? FontWeight.w800
                                       : FontWeight.w600,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               subtitle: Text(
@@ -165,13 +269,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   (n['body'] as String?) ?? '',
                                   _formatWhen(n['created_at']),
                                 ].where((s) => s.isNotEmpty).join('\n'),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
                               ),
                               isThreeLine: true,
                               trailing: unread
                                   ? const Icon(
                                       Icons.circle,
                                       size: 10,
-                                      color: Colors.indigo,
+                                      color: _royalBlue,
                                     )
                                   : null,
                               onTap: () => _open(n),

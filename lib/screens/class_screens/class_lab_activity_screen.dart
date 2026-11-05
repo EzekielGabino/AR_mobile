@@ -7,6 +7,16 @@ import 'package:scilense_ar_mobile/services/activity_submission_service.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
 import 'package:scilense_ar_mobile/services/lab_progress_store.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _navy = Color(0xFF091540);
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+const Color _success = Color(0xFF2E9E5B);
+const Color _amber = Color(0xFFF2A413);
+const Color _amberDark = Color(0xFF8A5A00); // readable amber text on light backgrounds
+const Color _amberTint = Color(0xFFFFF7E6); // soft amber card background
+
 /// Class-assigned lab detail — layout aligned with [LabActDetailScreen],
 /// plus max score, deadline, and submit flow.
 ///
@@ -456,8 +466,12 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
   Widget build(BuildContext context) {
     if (_isLoadingSubmission) {
       return Scaffold(
+        backgroundColor: AppColors.background,
+        // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
         appBar: AppBar(),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: CircularProgressIndicator(color: _royalBlue),
+        ),
       );
     }
 
@@ -467,6 +481,8 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
         : experiment.safetyPrecautions.join('\n');
 
     return Scaffold(
+      backgroundColor: AppColors.background,
+      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
       appBar: AppBar(
         title: Text(
           experiment.title.isEmpty ? 'Lab activity' : experiment.title,
@@ -474,7 +490,7 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
         children: [
           // Max score + deadline (class assignment metadata)
           Wrap(
@@ -482,35 +498,88 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
             runSpacing: 8,
             children: [
               Chip(
-                avatar: const Icon(Icons.star_outline, size: 16),
+                avatar: const Icon(
+                  Icons.star_outline,
+                  size: 16,
+                  color: _royalBlue,
+                ),
                 label: Text(
                   _isReturned && _submission?['score'] != null
                       ? 'Score: ${_submission!['score']} / ${_maxScore ?? '—'}'
                       : 'Max score: ${_maxScore ?? '—'}',
                 ),
                 visualDensity: VisualDensity.compact,
+                backgroundColor: _lightBlue.withValues(alpha: 0.35),
+                side: BorderSide(color: _periwinkle.withValues(alpha: 0.6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                labelStyle: const TextStyle(
+                  color: _navy,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Chip(
-                avatar: const Icon(Icons.event, size: 16),
+                avatar: const Icon(Icons.event, size: 16, color: _royalBlue),
                 label: Text(_deadlineLabel()),
                 visualDensity: VisualDensity.compact,
+                backgroundColor: _lightBlue.withValues(alpha: 0.35),
+                side: BorderSide(color: _periwinkle.withValues(alpha: 0.6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                labelStyle: const TextStyle(
+                  color: _navy,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               if (_hasSubmitted)
                 Chip(
                   avatar: Icon(
                     _isReturned ? Icons.done_all : Icons.hourglass_top,
                     size: 16,
+                    // Green = returned, amber = waiting for teacher
+                    color: _isReturned ? _success : _amberDark,
                   ),
                   label: Text(_isReturned ? 'Returned' : 'Submitted'),
                   visualDensity: VisualDensity.compact,
+                  backgroundColor: _isReturned
+                      ? _success.withValues(alpha: 0.12)
+                      : _amber.withValues(alpha: 0.15),
+                  side: BorderSide(
+                    color: _isReturned
+                        ? _success.withValues(alpha: 0.6)
+                        : _amber.withValues(alpha: 0.6),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  labelStyle: TextStyle(
+                    color: _isReturned ? _success : _amberDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           if (category.isNotEmpty) ...[
-            Chip(label: Text(category)),
-            const SizedBox(height: 12),
+            Chip(
+              label: Text(category),
+              backgroundColor: _lightBlue.withValues(alpha: 0.35),
+              side: BorderSide(color: _periwinkle.withValues(alpha: 0.6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              labelStyle: const TextStyle(
+                color: _royalBlue,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
 
           Text(
@@ -519,7 +588,7 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                 : experiment.description,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           _SectionCard(
             icon: Icons.health_and_safety_outlined,
@@ -528,11 +597,11 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
               safety.isEmpty ? 'No safety tips listed.' : safety,
               style: const TextStyle(
                 color: AppColors.textPrimary,
-                height: 1.4,
+                height: 1.5,
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           _SectionCard(
             icon: Icons.science_outlined,
@@ -567,7 +636,7 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                     ],
                   ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           _SectionCard(
             icon: Icons.bubble_chart_outlined,
@@ -601,12 +670,18 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
 
           if (_simulationCompleted && !_hasSubmitted) ...[
             const SizedBox(height: 16),
-            Text(
-              'Lab completed this session.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, size: 20, color: _success),
+                const SizedBox(width: 8),
+                Text(
+                  'Lab completed this session.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ],
 
@@ -619,14 +694,26 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
             ),
             const SizedBox(height: 8),
             Card(
+              // Visual only: white card, periwinkle glow, light-blue border, 16 px radius
+              color: Colors.white,
+              elevation: 4,
+              shadowColor: _periwinkle.withValues(alpha: 0.30),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Score: ${_submission?['score'] ?? '—'} / ${_maxScore ?? '—'}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        color: _royalBlue,
+                      ),
                     ),
                     if ((_submission?['feedback'] as String?)?.isNotEmpty ==
                         true) ...[
@@ -635,16 +722,16 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                     ],
                     if (_quizAnswers.isNotEmpty ||
                         experiment.quiz.questions.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       const Text('Your answers:'),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       ...List.generate(experiment.quiz.questions.length, (i) {
                         final q = experiment.quiz.questions[i];
                         final ansId = _answerForQuestion(q, i);
                         final ansLabel = _optionLabel(q, ansId);
                         final ok = _isCorrect(q, ansId);
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -672,66 +759,186 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
             const SizedBox(height: 24),
             Card(
               color: Colors.amber.shade50,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: _amber.withValues(alpha: 0.6)),
+              ),
               child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Submitted. Your teacher will review and return a score. '
-                  'Answers and results appear after it is returned.',
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.hourglass_top, size: 20, color: _amberDark),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Submitted. Your teacher will review and return a score. '
+                        'Answers and results appear after it is returned.',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _hasSubmitted ? null : _startLab,
-                      child: Text(
-                        _simulationCompleted ? 'Review lab' : 'Start lab',
+      bottomNavigationBar: Container(
+        // Visual only: white bar with a soft top shadow
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _periwinkle.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      // Gradient shows only while the button is enabled
+                      child: Container(
+                        decoration: _hasSubmitted
+                            ? null
+                            : BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [_royalBlue, _periwinkle],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _royalBlue.withValues(alpha: 0.30),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                        child: FilledButton(
+                          onPressed: _hasSubmitted ? null : _startLab,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            disabledBackgroundColor:
+                                _lightBlue.withValues(alpha: 0.5),
+                            foregroundColor: Colors.white,
+                            disabledForegroundColor: AppColors.textSecondary,
+                            shadowColor: Colors.transparent,
+                            minimumSize: const Size.fromHeight(56),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: Text(
+                            _simulationCompleted ? 'Review lab' : 'Start lab',
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _canTakeQuiz && _hasQuiz ? _openQuiz : null,
-                      child: Text(
-                        _quizCompleted ? 'Quiz done' : 'Quiz',
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _canTakeQuiz && _hasQuiz ? _openQuiz : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _royalBlue,
+                          disabledForegroundColor: AppColors.textSecondary,
+                          minimumSize: const Size.fromHeight(56),
+                          side: BorderSide(
+                            color: _canTakeQuiz && _hasQuiz
+                                ? _royalBlue
+                                : _lightBlue,
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: Text(
+                          _quizCompleted ? 'Quiz done' : 'Quiz',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (!_hasSubmitted) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    // Gradient shows while submit is allowed (also during the spinner)
+                    child: Container(
+                      decoration: _canSubmit
+                          ? BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [_royalBlue, _periwinkle],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _royalBlue.withValues(alpha: 0.30),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            )
+                          : null,
+                      child: ElevatedButton(
+                        onPressed:
+                            _canSubmit && !_isSubmitting ? _submitActivity : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          disabledBackgroundColor: _canSubmit
+                              ? Colors.transparent
+                              : _lightBlue.withValues(alpha: 0.5),
+                          foregroundColor: Colors.white,
+                          disabledForegroundColor: AppColors.textSecondary,
+                          shadowColor: Colors.transparent,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Submit activity',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                   ),
                 ],
-              ),
-              if (!_hasSubmitted) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed:
-                        _canSubmit && !_isSubmitting ? _submitActivity : null,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text(
-                            'Submit activity',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -752,32 +959,63 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Visual only: the safety card is AMBER (design-system safety warning color).
+    // Detected from the existing title string; no new parameter was added.
+    final bool isSafety = title == 'Safety tips';
+
     return Material(
-      color: AppColors.cardBackground,
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.28),
-      borderRadius: BorderRadius.circular(16),
+      color: isSafety ? _amberTint : AppColors.cardBackground,
+      elevation: 4,
+      shadowColor: (isSafety ? _amber : _periwinkle).withValues(alpha: 0.30),
+      // shape replaces borderRadius so a thin border can be added
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isSafety
+              ? _amber.withValues(alpha: 0.6)
+              : _lightBlue.withValues(alpha: 0.7),
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, size: 20, color: AppColors.accent),
+                // Icon chip: gradient for normal cards, amber for the safety card
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: isSafety
+                        ? null
+                        : const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_royalBlue, _periwinkle],
+                          ),
+                    color: isSafety ? _amber.withValues(alpha: 0.25) : null,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isSafety ? _amberDark : Colors.white,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: isSafety ? _amberDark : AppColors.textPrimary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             child,
           ],
         ),
@@ -800,11 +1038,11 @@ class _BulletRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Icon(Icons.circle, size: 6, color: AppColors.primaryLight),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Icon(Icons.circle, size: 8, color: _periwinkle),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -7,6 +7,12 @@ import 'package:scilense_ar_mobile/screens/class_screens/experiment_quiz_screen.
 import 'package:scilense_ar_mobile/services/activity_submission_service.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+const Color _success = Color(0xFF2E9E5B);
+
 class RegularActivityScreen extends StatefulWidget {
   final String classId;
   final String activityId;
@@ -205,7 +211,12 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
     final quiz = _quiz;
 
     if (_loadingSubmission) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: const Center(
+          child: CircularProgressIndicator(color: _royalBlue),
+        ),
+      );
     }
 
     final dateValue = widget.data['due_date'] ?? widget.data['published_at'];
@@ -222,6 +233,8 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
         : '';
 
     return Scaffold(
+      backgroundColor: AppColors.background,
+      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
       appBar: AppBar(
         title: Text(widget.data['title'] as String? ?? 'Activity'),
       ),
@@ -230,53 +243,119 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
       // SCROLLABLE CONTENT
       // ------------------------------------------------------------
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.data['max_score'] ?? 'No Score',
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
+            // Visual only: score + date/time sit on a white card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _lightBlue.withValues(alpha: 0.7)),
+                boxShadow: [
+                  BoxShadow(
+                    color: _periwinkle.withValues(alpha: 0.30),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.data['max_score'] ?? 'No Score',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                      color: _royalBlue,
+                    ),
+                  ),
 
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      date as String? ?? '',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    Text(
-                      time as String? ?? '',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ],
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (date.isNotEmpty) ...[
+                            const Icon(
+                              Icons.event_rounded,
+                              size: 16,
+                              color: _periwinkle,
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            date as String? ?? '',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (time.isNotEmpty) ...[
+                            const Icon(
+                              Icons.schedule_rounded,
+                              size: 16,
+                              color: _periwinkle,
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            time as String? ?? '',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
 
             Material(
               color: AppColors.cardBackground,
-              elevation: 2,
-              shadowColor: Colors.black.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(16),
+              elevation: 4,
+              shadowColor: _periwinkle.withValues(alpha: 0.30),
+              // shape replaces borderRadius so a thin border can be added
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+              ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.notes_outlined, size: 20, color: AppColors.accent),
-                        SizedBox(width: 8),
-                        Text(
+                        // Gradient icon chip (decorative)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [_royalBlue, _periwinkle],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.notes_outlined,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
                           'Description',
                           style: TextStyle(
                             fontSize: 16,
@@ -286,14 +365,14 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       (widget.data['description'] as String?)?.trim().isNotEmpty == true
                           ? widget.data['description'] as String
                           : 'No description provided.',
                       style: const TextStyle(
                         color: AppColors.textPrimary,
-                        height: 1.4,
+                        height: 1.5,
                       ),
                     ),
                   ],
@@ -326,7 +405,10 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
                     Text(
                       'Attachments',
                       style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     ...files.map((f) {
@@ -335,44 +417,62 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
                           f['url'] as String? ??
                           f['downloadURL'] as String? ??
                           '';
-                      return Material(
-                        color: AppColors.cardBackground,
-                        elevation: 1,
-                        borderRadius: BorderRadius.circular(12),
-                        child: ListTile(
-                          leading: const Icon(Icons.attach_file, color: AppColors.accent),
-                          title: Text(
-                            name,
-                            style: TextStyle(
-                              color: url.isNotEmpty
-                                  ? Theme.of(context).colorScheme.primary
-                                  : null,
-                              fontWeight: FontWeight.w600,
-                              decoration: url.isNotEmpty
-                                  ? TextDecoration.underline
-                                  : null,
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: AppColors.cardBackground,
+                          elevation: 4,
+                          shadowColor: _periwinkle.withValues(alpha: 0.30),
+                          clipBehavior: Clip.antiAlias,
+                          // shape replaces borderRadius so a thin border can be added
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: _lightBlue.withValues(alpha: 0.7),
                             ),
                           ),
-                          trailing: url.isNotEmpty
-                              ? const Icon(Icons.open_in_new, size: 18)
-                              : null,
-                          onTap: url.isEmpty
-                              ? null
-                              : () async {
-                                  final uri = Uri.tryParse(url);
-                                  if (uri == null) return;
-                                  final ok = await launchUrl(
-                                    uri,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                  if (!ok && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Could not open file.'),
-                                      ),
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.attach_file,
+                              color: _royalBlue,
+                            ),
+                            title: Text(
+                              name,
+                              style: TextStyle(
+                                color: url.isNotEmpty
+                                    ? _royalBlue
+                                    : AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                                decoration: url.isNotEmpty
+                                    ? TextDecoration.underline
+                                    : null,
+                              ),
+                            ),
+                            trailing: url.isNotEmpty
+                                ? const Icon(
+                                    Icons.open_in_new,
+                                    size: 18,
+                                    color: _periwinkle,
+                                  )
+                                : null,
+                            onTap: url.isEmpty
+                                ? null
+                                : () async {
+                                    final uri = Uri.tryParse(url);
+                                    if (uri == null) return;
+                                    final ok = await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
                                     );
-                                  }
-                                },
+                                    if (!ok && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Could not open file.'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                          ),
                         ),
                       );
                     }),
@@ -387,6 +487,15 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
             // --------------------------------------------------------
             if (quiz != null && quiz.questions.isNotEmpty)
               Card(
+                // Visual only: white card, periwinkle glow, light-blue border, 16 px radius
+                color: Colors.white,
+                elevation: 4,
+                shadowColor: _periwinkle.withValues(alpha: 0.30),
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -396,15 +505,19 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
                         children: [
                           Icon(
                             _quizCompleted ? Icons.check_circle : Icons.quiz,
+                            color: _quizCompleted ? _success : _royalBlue,
                           ),
 
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
 
                           Expanded(
                             child: Text(
                               _quizCompleted ? 'Quiz Completed' : 'Quiz',
                               style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
                             ),
                           ),
                         ],
@@ -416,19 +529,60 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
                         _quizCompleted
                             ? 'You have completed the quiz.'
                             : 'Test your understanding of this activity.',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          height: 1.5,
+                        ),
                       ),
 
                       const SizedBox(height: 16),
 
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _hasSubmitted ? null : _openQuiz,
-                          icon: Icon(
-                            _quizCompleted ? Icons.refresh : Icons.quiz,
-                          ),
-                          label: Text(
-                            _quizCompleted ? 'Review Quiz' : 'Take Quiz',
+                        // Gradient shows only while the button is enabled
+                        child: Container(
+                          decoration: _hasSubmitted
+                              ? null
+                              : BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [_royalBlue, _periwinkle],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _royalBlue.withValues(alpha: 0.30),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                          child: ElevatedButton.icon(
+                            onPressed: _hasSubmitted ? null : _openQuiz,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              disabledBackgroundColor:
+                                  _lightBlue.withValues(alpha: 0.5),
+                              foregroundColor: Colors.white,
+                              disabledForegroundColor: AppColors.textSecondary,
+                              shadowColor: Colors.transparent,
+                              elevation: 0,
+                              minimumSize: const Size.fromHeight(56),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            icon: Icon(
+                              _quizCompleted ? Icons.refresh : Icons.quiz,
+                            ),
+                            label: Text(
+                              _quizCompleted ? 'Review Quiz' : 'Take Quiz',
+                            ),
                           ),
                         ),
                       ),
@@ -438,16 +592,25 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
               )
             else
               Card(
+                // Visual only: informational card in light blue
+                color: _lightBlue.withValues(alpha: 0.25),
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: _periwinkle.withValues(alpha: 0.6)),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline),
-                      const SizedBox(width: 12),
+                      const Icon(Icons.info_outline, color: _royalBlue),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Text(
                           'This activity does not have a quiz.',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textPrimary),
                         ),
                       ),
                     ],
@@ -465,27 +628,82 @@ class _RegularActivityScreenState extends State<RegularActivityScreen> {
       // ------------------------------------------------------------
       // FIXED SUBMIT BUTTON
       // ------------------------------------------------------------
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _canSubmit && !_completing ? _submitActivity : null,
-              child: _completing
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      _hasSubmitted ? 'Activity Submitted' : 'Submit Activity',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+      bottomNavigationBar: Container(
+        // Visual only: white bar with a light-blue top border and soft shadow
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _periwinkle.withValues(alpha: 0.18),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              // Gradient shows while submit is allowed (also during the spinner)
+              child: Container(
+                decoration: _canSubmit
+                    ? BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [_royalBlue, _periwinkle],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _royalBlue.withValues(alpha: 0.30),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      )
+                    : null,
+                child: ElevatedButton(
+                  onPressed:
+                      _canSubmit && !_completing ? _submitActivity : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    disabledBackgroundColor: _canSubmit
+                        ? Colors.transparent
+                        : _lightBlue.withValues(alpha: 0.5),
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: AppColors.textSecondary,
+                    shadowColor: Colors.transparent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                  ),
+                  child: _completing
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _hasSubmitted
+                              ? 'Activity Submitted'
+                              : 'Submit Activity',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
             ),
           ),
         ),

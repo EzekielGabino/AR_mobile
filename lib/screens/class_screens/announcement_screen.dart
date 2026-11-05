@@ -6,6 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _navy = Color(0xFF091540);
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+
 class AnnouncementSection extends StatefulWidget {
   const AnnouncementSection({
     super.key,
@@ -123,7 +129,9 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(color: _royalBlue),
+      );
     }
     if (_error != null) {
       return Center(
@@ -132,13 +140,38 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: AppColors.safetyRed,
+              ),
+              const SizedBox(height: 16),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _bootstrap, child: const Text('Retry')),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _bootstrap,
+                // Visual only: royal blue button, 12 px radius, easy to tap
+                style: FilledButton.styleFrom(
+                  backgroundColor: _royalBlue,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(120, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                child: const Text('Retry'),
+              ),
             ],
           ),
         ),
@@ -148,18 +181,29 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
     if (_items.isEmpty) {
       return RefreshIndicator(
         onRefresh: _fetchOnce,
-        color: AppColors.primaryLight,
+        color: _royalBlue,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(24),
           children: [
             SizedBox(height: MediaQuery.of(context).size.height * 0.2),
-            Icon(
-              Icons.campaign_outlined,
-              size: 48,
-              color: AppColors.primaryLight.withValues(alpha: 0.7),
+            // Icon inside a soft light-blue circle (decorative)
+            Center(
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: _lightBlue.withValues(alpha: 0.35),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.campaign_outlined,
+                  size: 48,
+                  color: _periwinkle,
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             const Text(
               'No announcements yet',
               textAlign: TextAlign.center,
@@ -169,11 +213,15 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             const Text(
               'When your teacher posts to the class stream, it will show up here.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -182,12 +230,12 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
 
     return RefreshIndicator(
       onRefresh: _fetchOnce,
-      color: AppColors.primaryLight,
+      color: _royalBlue,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         itemCount: _items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
         itemBuilder: (_, index) {
           final data = _items[index];
           final body = data['body'] as String? ?? '';
@@ -201,34 +249,48 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
 
           return Material(
             color: AppColors.cardBackground,
-            elevation: 2,
-            shadowColor: Colors.black.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(16),
+            elevation: 4,
+            shadowColor: _periwinkle.withValues(alpha: 0.30),
+            // shape replaces borderRadius so a thin light-blue border can be added
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+            ),
             clipBehavior: Clip.antiAlias,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.primaryLight.withValues(
-                          alpha: 0.25,
+                      // Gradient ring around the avatar (decorative)
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_royalBlue, _periwinkle],
+                          ),
                         ),
-                        backgroundImage: teachPhoto.isNotEmpty
-                            ? NetworkImage(teachPhoto)
-                            : null,
-                        child: teachPhoto.isEmpty
-                            ? const Icon(
-                                Icons.person,
-                                color: AppColors.accent,
-                                size: 22,
-                              )
-                            : null,
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: _lightBlue.withValues(alpha: 0.35),
+                          backgroundImage: teachPhoto.isNotEmpty
+                              ? NetworkImage(teachPhoto)
+                              : null,
+                          child: teachPhoto.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  color: _royalBlue,
+                                  size: 22,
+                                )
+                              : null,
+                        ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,19 +314,25 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                           ],
                         ),
                       ),
+                      // Decorative announcement icon
+                      const Icon(
+                        Icons.campaign_rounded,
+                        size: 24,
+                        color: _periwinkle,
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Text(
                     body,
                     style: const TextStyle(
                       fontSize: 14,
-                      height: 1.4,
+                      height: 1.5,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   if (files.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     ...files.map((f) {
                       final name =
                           f['name']?.toString() ??
@@ -275,17 +343,24 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                           f['publicUrl']?.toString() ??
                           '';
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Material(
-                          color: AppColors.primaryDark.withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(10),
+                          color: _navy,
+                          // shape replaces borderRadius so a thin border can be added
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: _periwinkle.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
                           child: InkWell(
                             onTap: url.isEmpty ? null : () => _openFile(url),
-                            borderRadius: BorderRadius.circular(10),
+                            splashColor: _periwinkle.withValues(alpha: 0.25),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
+                                horizontal: 16,
+                                vertical: 12,
                               ),
                               child: Row(
                                 children: [

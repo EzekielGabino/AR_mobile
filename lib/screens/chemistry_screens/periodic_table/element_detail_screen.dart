@@ -25,11 +25,11 @@ class ElementDetailScreen extends StatelessWidget {
 
       case "alkaline earth metal":
       case "alkaline":
-        return Colors.orange.shade300;
+        return const Color.fromARGB(255, 255, 209, 141);
 
       case "transition metal":
       case "transition":
-        return Colors.amber.shade500;
+        return const Color.fromARGB(255, 158, 130, 44);
 
       case "post-transition metal":
       case "post-transition":
@@ -70,7 +70,7 @@ class ElementDetailScreen extends StatelessWidget {
     final themeColor = getCategoryColor();
 
     return Scaffold(
-      backgroundColor: themeColor.withValues(alpha: 0.55),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('${element.name} (${element.symbol})'),
         backgroundColor: themeColor,
@@ -189,12 +189,7 @@ class ElementDetailScreen extends StatelessWidget {
 
             Card(
               elevation: 2,
-              color: themeColor.withValues(
-                alpha: 0.75,
-                red: 1,
-                blue: 0.8,
-                green: 1,
-              ),
+              color: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(color: Colors.grey.shade200, width: 1),

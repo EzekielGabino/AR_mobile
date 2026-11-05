@@ -11,6 +11,13 @@ import 'package:scilense_ar_mobile/screens/sample%20lab%20act%20screens/ar_lab_a
 import 'package:scilense_ar_mobile/services/auth_service.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
+// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
+const Color _navy = Color(0xFF091540);
+const Color _royalBlue = Color(0xFF1B2CC1);
+const Color _periwinkle = Color(0xFF7692FF);
+const Color _lightBlue = Color(0xFFABD2FA);
+const Color _amber = Color(0xFFF2A413);
+
 class _HubItem {
   const _HubItem({
     required this.title,
@@ -75,6 +82,7 @@ class ChemistryHubScreen extends StatelessWidget {
         return Scaffold(
           // Explicit theme background (same as AppTheme.scaffoldBackgroundColor)
           backgroundColor: AppColors.background,
+          // AppBar restored to the ORIGINAL (uses the app theme's AppBar style)
           appBar: AppBar(
             title: const Text('Chemistry Hub'),
             centerTitle: true,
@@ -82,17 +90,30 @@ class ChemistryHubScreen extends StatelessWidget {
             actions: const [ProfileAppBarButton(onlyWhenNoClassroom: true)],
           ),
           body: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final item = items[index];
-              return _HubImageCard(
-                title: item.title,
-                imageAsset: item.imageAsset,
-                onTap: () =>
-                    Navigator.of(context)
-                        .push(MaterialPageRoute(builder: item.builder)),
+              // Light entrance animation (visual only, does not touch the card or onTap)
+              return TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) => Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(0, 16 * (1 - value)),
+                    child: child,
+                  ),
+                ),
+                child: _HubImageCard(
+                  title: item.title,
+                  imageAsset: item.imageAsset,
+                  onTap: () =>
+                      Navigator.of(context)
+                          .push(MaterialPageRoute(builder: item.builder)),
+                ),
               );
             },
           ),
@@ -114,26 +135,53 @@ class _HubImageCard extends StatelessWidget {
   final String imageAsset;
   final VoidCallback onTap;
 
-  static const double _cardHeight = 168;
+  static const double _cardHeight = 176;
+
+  /// Friendly icon per hub card (visual only; falls back to a science icon).
+  IconData _iconForTitle(String title) {
+    switch (title) {
+      case 'Practice AR Lab Activities':
+        return Icons.view_in_ar_rounded;
+      case 'Object Detection':
+        return Icons.center_focus_strong_rounded;
+      case 'Laboratory Equipment Info':
+        return Icons.biotech_rounded;
+      case 'Laboratory Safety Hazards':
+        return Icons.warning_amber_rounded;
+      case 'Periodic Table':
+        return Icons.grid_view_rounded;
+      case 'Element Memory':
+        return Icons.psychology_rounded;
+      default:
+        return Icons.science_outlined;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isHazard = title == 'Laboratory Safety Hazards';
+
     return Material(
       color: AppColors.cardBackground,
-      elevation: 2,
-      shadowColor: AppColors.primaryDark.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      shadowColor: _periwinkle.withValues(alpha: 0.30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        splashColor: _periwinkle.withValues(alpha: 0.18),
+        highlightColor: _lightBlue.withValues(alpha: 0.12),
         child: SizedBox(
           height: _cardHeight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ~80% image — same treatment on every card
+              // ~72% image — same treatment on every card
               Expanded(
-                flex: 80,
+                flex: 72,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -166,15 +214,42 @@ class _HubImageCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // Icon chip: semi-transparent navy so the photo still shows through
+                    Positioned(
+                      left: 16,
+                      top: 16,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: _navy.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _periwinkle.withValues(alpha: 0.7),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _periwinkle.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _iconForTitle(title),
+                          size: 24,
+                          color: isHazard ? _amber : _lightBlue,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              // ~20% title — identical band on every card
+              // ~28% title — identical band on every card
               Expanded(
-                flex: 20,
+                flex: 28,
                 child: Container(
                   alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.only(left: 16, right: 8),
                   decoration: BoxDecoration(
                     color: AppColors.cardBackground,
                     border: Border(
@@ -183,16 +258,48 @@ class _HubImageCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  child: Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      height: 1.15,
-                      color: AppColors.textPrimary,
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Gradient arrow button (decorative; the whole card is the tap target)
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_royalBlue, _periwinkle],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _royalBlue.withValues(alpha: 0.30),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

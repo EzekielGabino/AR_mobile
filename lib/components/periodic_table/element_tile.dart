@@ -18,11 +18,11 @@ class ElementTile extends StatelessWidget {
 
       case "alkaline earth metal":
       case "alkaline":
-        return Colors.orange.shade300;
+        return const Color.fromARGB(255, 255, 209, 141);
 
       case "transition metal":
       case "transition":
-        return Colors.amber.shade500;
+        return const Color.fromARGB(255, 158, 130, 44);
 
       case "post-transition metal":
       case "post-transition":
