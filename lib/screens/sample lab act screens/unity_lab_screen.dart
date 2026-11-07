@@ -81,6 +81,72 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
     );
   }
 
+  /// Tip after student removes an apparatus in Unity.
+  void _showRemovedTipDialog() {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Wrong move?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'If you removed the wrong apparatus, restart the lab and try again.',
+              ),
+              const SizedBox(height: 16),
+              // Visual of the in-lab Restart control (top-right icon)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.restart_alt, color: Colors.white, size: 32),
+                    SizedBox(width: 10),
+                    Text(
+                      'Restart',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Use the restart button at the top of the lab screen.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _resetLab();
+              },
+              child: const Text('Restart now'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -123,6 +189,8 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
                   setState(() => _showDistanceGuide = true);
                 } else if (msg == 'PlacementEnded') {
                   setState(() => _showDistanceGuide = false);
+                } else if (msg == 'ApparatusRemoved') {
+                  _showRemovedTipDialog();
                 }
 
                 if (lower == 'scene_loaded') {

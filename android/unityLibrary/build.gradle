@@ -171,8 +171,24 @@ def buildIl2CppImpl(String workingDir, String configuration, String architecture
     def extensionToRemove = usePublicSymbols ? ".dbg.so" : ".sym.so"
     def extensionToKeep = usePublicSymbols ? ".sym.so" : ".dbg.so"
 
-    delete "${workingDir}/src/main/jniLibs/${abi}/libil2cpp${extensionToRemove}"
-    ant.move(file: "${workingDir}/src/main/jniLibs/${abi}/libil2cpp${extensionToKeep}", tofile: "${workingDir}/symbols/${abi}/libil2cpp.so")
+    def jniLibDir = "${workingDir}/src/main/jniLibs/${abi}"
+    def symbolsDir = "${workingDir}/symbols/${abi}"
+    def removeFile = "${jniLibDir}/libil2cpp${extensionToRemove}"
+    def keepFile = "${jniLibDir}/libil2cpp${extensionToKeep}"
+    def symbolOut = "${symbolsDir}/libil2cpp.so"
+
+    // Ensure symbols folder exists
+    new File(symbolsDir).mkdirs()
+
+    // Only delete/move if the file is present (avoids 2nd-run failure)
+    if (new File(removeFile).exists()) {
+        delete removeFile
+    }
+    if (new File(keepFile).exists()) {
+        ant.move(file: keepFile, tofile: symbolOut)
+    } else {
+        println "buildIl2Cpp: skip symbol move — missing ${keepFile}"
+    }
 
 }
 

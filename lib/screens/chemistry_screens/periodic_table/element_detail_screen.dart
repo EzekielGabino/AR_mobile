@@ -140,13 +140,19 @@ class ElementDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            const Text(
-              'Element Preview',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.background,
-              ),
+            Row(
+              children: [
+                Icon(Icons.image, color: themeColor, size: 22),
+                const SizedBox(width: 8),
+                const Text(
+                  'Element Preview',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
 
@@ -180,7 +186,7 @@ class ElementDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.background,
+                    color: AppColors.primaryDark,
                   ),
                 ),
               ],
@@ -316,7 +322,7 @@ class ElementDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: themeColor.withValues(alpha: 1),
+                    color: AppColors.primaryDark,
                   ),
                 ),
               ),

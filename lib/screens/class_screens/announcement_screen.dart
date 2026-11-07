@@ -129,9 +129,7 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: _royalBlue),
-      );
+      return const Center(child: CircularProgressIndicator(color: _royalBlue));
     }
     if (_error != null) {
       return Center(
@@ -345,14 +343,15 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Material(
-                          color: _navy,
+                          color: Colors.white,
                           // shape replaces borderRadius so a thin border can be added
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: _periwinkle.withValues(alpha: 0.5),
+                              color: _periwinkle.withValues(alpha: 1),
                             ),
                           ),
+                          elevation: 5,
                           clipBehavior: Clip.antiAlias,
                           child: InkWell(
                             onTap: url.isEmpty ? null : () => _openFile(url),
@@ -367,7 +366,7 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                                   const Icon(
                                     Icons.attach_file,
                                     size: 18,
-                                    color: AppColors.accentSoft,
+                                    color: AppColors.textPrimary,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -378,7 +377,7 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: AppColors.accentSoft,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -386,7 +385,7 @@ class _AnnouncementSectionState extends State<AnnouncementSection> {
                                     const Icon(
                                       Icons.open_in_new,
                                       size: 16,
-                                      color: AppColors.accentSoft,
+                                      color: AppColors.textPrimary,
                                     ),
                                 ],
                               ),
