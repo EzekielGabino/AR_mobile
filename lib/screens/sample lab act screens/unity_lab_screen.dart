@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_embed_unity/flutter_embed_unity.dart';
 import 'package:lottie/lottie.dart';
 import 'package:scilense_ar_mobile/screens/sample%20lab%20act%20screens/lab_onboarding_screen.dart';
-import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 class UnityLabScreen extends StatefulWidget {
   final Map<String, dynamic>? activityJson;
