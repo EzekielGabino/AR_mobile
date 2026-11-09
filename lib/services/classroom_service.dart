@@ -277,4 +277,56 @@ class ClassroomService {
 
     notifyProfileChanged();
   }
+
+  /// Published class lab activities whose content.elements mention [symbol] or [name].
+  Future<List<Map<String, dynamic>>> fetchPublishedActivitiesForElement({
+    required String classId,
+    required String symbol,
+    required String name,
+  }) async {
+    if (classId.isEmpty) return [];
+    try {
+      final rows = await _client
+          .from('class_activities')
+          .select('id, title, description, due_date, due_time, type, content, published')
+          .eq('class_id', classId)
+          .eq('published', true)
+          .order('published_at', ascending: false);
+      final sym = symbol.trim().toLowerCase();
+      final nm = name.trim().toLowerCase();
+      final out = <Map<String, dynamic>>[];
+      for (final r in (rows as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        final content = m['content'];
+        Map<String, dynamic>? cMap;
+        if (content is Map) {
+          cMap = Map<String, dynamic>.from(content);
+        }
+        final elements = cMap?['elements'] ?? m['elements'];
+        if (elements is! List) continue;
+        var hit = false;
+        for (final e in elements) {
+          if (e is! Map) continue;
+          final em = Map<String, dynamic>.from(e);
+          final es = (em['symbol'] ?? em['formula'] ?? em['elementFormula'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          final en = (em['name'] ?? em['substanceName'] ?? em['label'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          if (es == sym || en == nm || es.contains(sym) || en.contains(nm)) {
+            hit = true;
+            break;
+          }
+        }
+        if (hit) out.add(m);
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  }
+
 }

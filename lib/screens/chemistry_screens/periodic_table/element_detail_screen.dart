@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:scilense_ar_mobile/models/element.dart';
+import 'package:scilense_ar_mobile/services/auth_service.dart';
+import 'package:scilense_ar_mobile/services/classroom_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 class ElementDetailScreen extends StatelessWidget {
@@ -176,6 +178,11 @@ class ElementDetailScreen extends StatelessWidget {
               ),
             ),
 
+            _LinkedClassLabsSection(
+              elementSymbol: element.symbol,
+              elementName: element.name,
+              themeColor: themeColor,
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -591,5 +598,108 @@ class _BohrAtomPainter extends CustomPainter {
   bool shouldRepaint(covariant _BohrAtomPainter oldDelegate) {
     return oldDelegate.atomicNumber != atomicNumber ||
         oldDelegate.color != color;
+  }
+}
+
+
+/// Published class labs that use this element (student Chemistry Hub).
+class _LinkedClassLabsSection extends StatefulWidget {
+  const _LinkedClassLabsSection({
+    required this.elementSymbol,
+    required this.elementName,
+    required this.themeColor,
+  });
+
+  final String elementSymbol;
+  final String elementName;
+  final Color themeColor;
+
+  @override
+  State<_LinkedClassLabsSection> createState() => _LinkedClassLabsSectionState();
+}
+
+class _LinkedClassLabsSectionState extends State<_LinkedClassLabsSection> {
+  late Future<List<Map<String, dynamic>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final user = AuthService().currentUser;
+    if (user == null) return [];
+    final profile = await ClassroomService().fetchMyProfile(user.id);
+    final classId = profile?['classroom_id']?.toString() ?? '';
+    if (classId.isEmpty) return [];
+    return ClassroomService().fetchPublishedActivitiesForElement(
+      classId: classId,
+      symbol: widget.elementSymbol,
+      name: widget.elementName,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        final list = snap.data ?? [];
+        if (list.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.science_outlined, color: widget.themeColor, size: 22),
+                const SizedBox(width: 8),
+                const Text(
+                  'Class activities',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Published labs in your class that use ${widget.elementName}.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 10),
+            ...list.map((a) {
+              final title = a['title']?.toString() ?? 'Lab activity';
+              final due = a['due_date']?.toString() ?? '';
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                elevation: 1,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: widget.themeColor.withValues(alpha: 0.25)),
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.assignment_outlined, color: widget.themeColor),
+                  title: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                  subtitle: due.isEmpty
+                      ? const Text('No due date')
+                      : Text('Due $due'),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
   }
 }

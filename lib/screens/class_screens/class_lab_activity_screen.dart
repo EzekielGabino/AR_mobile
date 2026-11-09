@@ -66,6 +66,7 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
   bool _isLoadingSubmission = true;
   bool _hasSubmitted = false;
   Map<String, dynamic>? _submission;
+  bool _allStudentsSubmitted = false;
 
   Experiment get experiment => widget.experiment;
 
@@ -208,6 +209,16 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
       }
     } catch (e) {
       debugPrint('Error loading student submission: $e');
+    }
+
+    try {
+      final allDone = await _submissionService.allStudentsSubmitted(
+        activityId: widget.activityId,
+        classId: widget.classId,
+      );
+      if (mounted) setState(() => _allStudentsSubmitted = allDone);
+    } catch (e) {
+      debugPrint('Error checking class submissions: $e');
     } finally {
       if (mounted) setState(() => _isLoadingSubmission = false);
     }
@@ -685,8 +696,8 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
             ),
           ],
 
-          // Answers / results only after teacher returns
-          if (_isReturned) ...[
+          // Score after return; answer sheet after all classmates submitted
+          if (_isReturned || _allStudentsSubmitted) ...[
             const SizedBox(height: 24),
             Text(
               'Results',
@@ -707,21 +718,29 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Score: ${_submission?['score'] ?? '—'} / ${_maxScore ?? '—'}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'monospace',
-                        color: _royalBlue,
+                    if (_isReturned) ...[
+                      Text(
+                        'Score: ${_submission?['score'] ?? '—'} / ${_maxScore ?? '—'}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                          color: _royalBlue,
+                        ),
                       ),
-                    ),
-                    if ((_submission?['feedback'] as String?)?.isNotEmpty ==
-                        true) ...[
-                      const SizedBox(height: 8),
-                      Text('Feedback: ${_submission!['feedback']}'),
+                      if ((_submission?['feedback'] as String?)?.isNotEmpty ==
+                          true) ...[
+                        const SizedBox(height: 8),
+                        Text('Feedback: ${_submission!['feedback']}'),
+                      ],
+                    ] else if (_allStudentsSubmitted) ...[
+                      const Text(
+                        'Answer sheet is available. Your score appears after the teacher returns your work.',
+                        style: TextStyle(fontSize: 12, color: _amberDark),
+                      ),
                     ],
-                    if (_quizAnswers.isNotEmpty ||
-                        experiment.quiz.questions.isNotEmpty) ...[
+                    if (_allStudentsSubmitted &&
+                        (_quizAnswers.isNotEmpty ||
+                            experiment.quiz.questions.isNotEmpty)) ...[
                       const SizedBox(height: 16),
                       const Text('Your answers:'),
                       const SizedBox(height: 8),

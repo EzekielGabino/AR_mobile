@@ -25,6 +25,17 @@ class _MainScreenState extends State<MainScreen> {
 
   void switchindex(int screenindex) {
     setState(() {
+      // Leaving notification deep-link: tapping Home from another root tab
+      // always opens the default stream, not the last alert target.
+      if (screenindex == 0 && selectedindex != 0) {
+        _homeTab = 0;
+        _homeEpoch++;
+        screens[0] = HomeScreen(
+          key: ValueKey('home-$_homeEpoch-$_homeTab'),
+          classId: classID,
+          initialTab: 0,
+        );
+      }
       selectedindex = screenindex;
     });
   }
