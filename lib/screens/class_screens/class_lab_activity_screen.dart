@@ -66,7 +66,7 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
   bool _isLoadingSubmission = true;
   bool _hasSubmitted = false;
   Map<String, dynamic>? _submission;
-  bool _allStudentsSubmitted = false;
+  bool _allStudentsReturned = false;
 
   Experiment get experiment => widget.experiment;
 
@@ -212,11 +212,11 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
     }
 
     try {
-      final allDone = await _submissionService.allStudentsSubmitted(
+      final allReturned = await _submissionService.allStudentsReturned(
         activityId: widget.activityId,
         classId: widget.classId,
       );
-      if (mounted) setState(() => _allStudentsSubmitted = allDone);
+      if (mounted) setState(() => _allStudentsReturned = allReturned);
     } catch (e) {
       debugPrint('Error checking class submissions: $e');
     } finally {
@@ -696,8 +696,8 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
             ),
           ],
 
-          // Score after return; answer sheet after all classmates submitted
-          if (_isReturned || _allStudentsSubmitted) ...[
+          // Score after this return; answer sheet after all classmates returned
+          if (_isReturned || _allStudentsReturned) ...[
             const SizedBox(height: 24),
             Text(
               'Results',
@@ -732,13 +732,13 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                         const SizedBox(height: 8),
                         Text('Feedback: ${_submission!['feedback']}'),
                       ],
-                    ] else if (_allStudentsSubmitted) ...[
+                    ] else if (_allStudentsReturned) ...[
                       const Text(
-                        'Answer sheet is available. Your score appears after the teacher returns your work.',
+                        'Class answer sheet is ready. Your personal score appears after the teacher returns your work.',
                         style: TextStyle(fontSize: 12, color: _amberDark),
                       ),
                     ],
-                    if (_allStudentsSubmitted &&
+                    if (_allStudentsReturned &&
                         (_quizAnswers.isNotEmpty ||
                             experiment.quiz.questions.isNotEmpty)) ...[
                       const SizedBox(height: 16),
@@ -755,16 +755,20 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Q${i + 1}: $ansLabel${ansId == null ? '' : (ok ? ' ✓' : ' ✗')}',
+                                'Q${i + 1}: ${q.prompt}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
-                              if (ansId != null && !ok)
-                                Text(
-                                  'Correct: ${_optionLabel(q, q.correctOption)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.green.shade700,
-                                  ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Your answer: $ansLabel${ansId == null ? '' : (ok ? ' ✓' : ' ✗')}',
+                              ),
+                              Text(
+                                'Correct: ${_optionLabel(q, q.correctOption)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green.shade700,
                                 ),
+                              ),
                             ],
                           ),
                         );
@@ -793,7 +797,7 @@ class _ClassLabActivityScreenState extends State<ClassLabActivityScreen> {
                     Expanded(
                       child: Text(
                         'Submitted. Your teacher will review and return a score. '
-                        'Answers and results appear after it is returned.',
+                        'The answer sheet opens after every classmate has their work returned.',
                       ),
                     ),
                   ],

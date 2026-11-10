@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/screens/chemistry_screens/chemistry_hub_screen.dart';
 import 'package:scilense_ar_mobile/screens/class_screens/notifications_screen.dart';
 import 'package:scilense_ar_mobile/screens/home_screen.dart';
 import 'package:scilense_ar_mobile/screens/people%20screens/people_screen.dart';
+import 'package:scilense_ar_mobile/services/auth_service.dart';
 import 'package:scilense_ar_mobile/services/student_notification_service.dart';
+import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
 class MainScreen extends StatefulWidget {
@@ -14,7 +18,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int selectedindex = 0;
   String classID = '';
   int _unread = 0;
@@ -22,11 +26,10 @@ class _MainScreenState extends State<MainScreen> {
   int _homeEpoch = 0;
 
   late List<Widget> screens;
+  StreamSubscription? _notifSub;
 
   void switchindex(int screenindex) {
     setState(() {
-      // Leaving notification deep-link: tapping Home from another root tab
-      // always opens the default stream, not the last alert target.
       if (screenindex == 0 && selectedindex != 0) {
         _homeTab = 0;
         _homeEpoch++;
@@ -59,7 +62,7 @@ class _MainScreenState extends State<MainScreen> {
         builder: (_) => NotificationsScreen(
           classId: classID,
           onOpenStream: () {
-            Navigator.of(context).pop(); // close alerts
+            Navigator.of(context).pop();
             _openHome(tab: 0);
           },
           onOpenActivities: () {
@@ -75,9 +78,25 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     classID = widget.classId;
     _rebuildScreens();
     _refreshUnread();
+    _listenNotifications();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notifSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshUnread();
+    }
   }
 
   void _rebuildScreens() {
@@ -92,9 +111,40 @@ class _MainScreenState extends State<MainScreen> {
     ];
   }
 
+  void _listenNotifications() {
+    final uid = AuthService().uid ?? SupabaseService.client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return;
+
+    _notifSub?.cancel();
+    try {
+      _notifSub = SupabaseService.client
+          .from('student_notifications')
+          .stream(primaryKey: ['id'])
+          .eq('user_id', uid)
+          .listen(
+            (rows) {
+              if (!mounted) return;
+              final unread = rows.where((r) {
+                if (r['read_at'] != null) return false;
+                if (classID.isEmpty) return true;
+                return r['class_id']?.toString() == classID;
+              }).length;
+              setState(() => _unread = unread);
+            },
+            onError: (_) {
+              _refreshUnread();
+            },
+          );
+    } catch (_) {
+      _refreshUnread();
+    }
+  }
+
   Future<void> _refreshUnread() async {
     try {
-      final n = await StudentNotificationService().unreadCount();
+      final n = await StudentNotificationService().unreadCount(
+        classId: classID,
+      );
       if (mounted) setState(() => _unread = n);
     } catch (_) {}
   }

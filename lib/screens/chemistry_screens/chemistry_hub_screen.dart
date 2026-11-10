@@ -9,6 +9,7 @@ import 'package:scilense_ar_mobile/screens/chemistry_screens/equipment_details/e
 import 'package:scilense_ar_mobile/screens/chemistry_screens/periodic_table/periodic_table_screen.dart';
 import 'package:scilense_ar_mobile/screens/sample%20lab%20act%20screens/ar_lab_acts_screen.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
+import 'package:scilense_ar_mobile/screens/people%20screens/profile_screen.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
 // Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
@@ -77,6 +78,10 @@ class ChemistryHubScreen extends StatelessWidget {
         final user = AuthService().currentUser;
         final isSignedIn =
             user != null || SupabaseService.client.auth.currentSession != null;
+        if (!isSignedIn) {
+          // Chemistry Hub is signed-in only; bounce to Profile.
+          return const ProfileScreen();
+        }
         final items = _items(isSignedIn);
 
         return Scaffold(
@@ -87,6 +92,10 @@ class ChemistryHubScreen extends StatelessWidget {
             title: const Text('Chemistry Hub'),
             centerTitle: true,
             automaticallyImplyLeading: false,
+            backgroundColor: AppColors.primaryDark,
+            foregroundColor: Colors.white,
+            elevation: 2,
+            surfaceTintColor: Colors.transparent,
             actions: const [ProfileAppBarButton(onlyWhenNoClassroom: true)],
           ),
           body: ListView.separated(

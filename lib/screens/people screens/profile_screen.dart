@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scilense_ar_mobile/components/auth_gate.dart';
+import 'package:scilense_ar_mobile/screens/chemistry_screens/chemistry_hub_screen.dart';
+import 'package:scilense_ar_mobile/screens/app_onboarding_screen.dart';
+import 'package:scilense_ar_mobile/services/app_onboarding_store.dart';
 import 'package:scilense_ar_mobile/screens/people%20screens/join_classroom_screen.dart';
 import 'package:scilense_ar_mobile/screens/people%20screens/pending_approval_screen.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
@@ -17,8 +20,7 @@ const Color _royalBlue = Color(0xFF1B2CC1);
 const Color _periwinkle = Color(0xFF7692FF);
 const Color _lightBlue = Color(0xFFABD2FA);
 
-/// Profile / sign-in. Auth is Supabase (M2 Part A).
-/// Classroom join still uses ClassroomService (Firebase until M3).
+/// Profile / sign-in. Auth and classroom are Supabase.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -33,20 +35,54 @@ class ProfileScreen extends StatelessWidget {
             SupabaseService.client.auth.currentUser;
 
         return Scaffold(
-          // Explicit theme background (same as AppTheme.scaffoldBackgroundColor)
           backgroundColor: AppColors.background,
-          // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
-          appBar: AppBar(
-            title: const Text("Profile"),
-            centerTitle: true,
-            actions: [
-              if (user != null)
-                IconButton(
-                  onPressed: () => _handleSignOut(context),
-                  icon: const Icon(Icons.exit_to_app),
+          appBar: user == null
+              ? null
+              : AppBar(
+                  title: const Text('Profile'),
+                  centerTitle: true,
+                  backgroundColor: AppColors.primaryDark,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  surfaceTintColor: Colors.transparent,
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  actionsIconTheme: const IconThemeData(color: Colors.white),
+                  titleTextStyle: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  leading: (ModalRoute.of(context)?.canPop ?? false)
+                      ? IconButton(
+                          tooltip: 'Back',
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Chemistry Hub',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ChemistryHubScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.science_outlined,
+                            color: Colors.white,
+                          ),
+                        ),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Sign out',
+                      onPressed: () => _handleSignOut(context),
+                      icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                    ),
+                  ],
                 ),
-            ],
-          ),
           body: user != null
               ? _SignedInBody(user: user)
               : _SignedOutBody(onSignIn: () => _handleGoogleSignIn(context)),
@@ -242,6 +278,20 @@ class _SignedOutBody extends StatelessWidget {
                   label: 'Sign in with Google',
                 ),
               ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () async {
+                  await AppOnboardingStore.reset();
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      fullscreenDialog: true,
+                      builder: (_) => const AppOnboardingScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Show app guide'),
+              ),
             ],
           ),
         ),
@@ -250,72 +300,52 @@ class _SignedOutBody extends StatelessWidget {
   }
 }
 
-class _SignedInBody extends StatelessWidget {
+class _SignedInBody extends StatefulWidget {
   final User user;
   const _SignedInBody({required this.user});
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _loadProfile(),
-      builder: (context, snapshot) {
-        final data = snapshot.data;
-        final classroomId = data?['classroom_id'] as String?;
-        final classroomName = data?['classroom_name'] as String?;
-        final classroomCode = data?['classroom_access_code'] as String?;
-        final inClassroom = classroomId != null && classroomId.isNotEmpty;
+  State<_SignedInBody> createState() => _SignedInBodyState();
+}
 
-        final displayName =
-            data?['display_name'] as String? ??
-            user.userMetadata?['full_name'] as String? ??
-            user.userMetadata?['name'] as String? ??
-            user.email ??
-            'Student';
-        final photoUrl =
-            data?['photo_url'] as String? ??
-            user.userMetadata?['avatar_url'] as String?;
+class _SignedInBodyState extends State<_SignedInBody> {
+  Map<String, dynamic>? _profile;
+  bool _loading = true;
+  bool _leaving = false;
 
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            _AccountCard(
-              displayName: displayName,
-              email: user.email,
-              photoUrl: photoUrl,
-            ),
-            const SizedBox(height: 24),
-            inClassroom
-                ? _ClassroomCard(
-                    name: classroomName ?? 'Your Classroom',
-                    code: classroomCode ?? '',
-                    onLeave: () => _confirmLeave(context),
-                  )
-                : const _JoinClassroomCard(),
-          ],
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _reload();
   }
 
-  Future<Map<String, dynamic>?> _loadProfile() async {
-    try {
-      return await SupabaseService.client
-          .from('profiles')
-          .select(
-            'classroom_id, classroom_name, classroom_access_code, display_name, photo_url',
-          )
-          .eq('id', user.id)
-          .maybeSingle();
-    } catch (_) {
-      return null;
+  @override
+  void didUpdateWidget(covariant _SignedInBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.id != widget.user.id) {
+      _reload();
     }
   }
 
-  void _confirmLeave(BuildContext context) async {
+  Future<void> _reload() async {
+    setState(() => _loading = true);
+    Map<String, dynamic>? data;
+    try {
+      data = await ClassroomService().fetchMyProfile(widget.user.id);
+    } catch (_) {
+      data = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _profile = data;
+      _loading = false;
+    });
+  }
+
+  Future<void> _confirmLeave() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        // Visual only: white dialog, 16 px radius, navy title
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
@@ -340,6 +370,7 @@ class _SignedInBody extends StatelessWidget {
             onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -349,26 +380,93 @@ class _SignedInBody extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      // leaveClassroom still Firebase until M3 — call if it doesn't throw hard
-      try {
-        await ClassroomService().leaveClassroom();
-      } catch (_) {}
-      try {
-        await SupabaseService.client
-            .from('profiles')
-            .update({
-              'classroom_id': null,
-              'classroom_name': null,
-              'classroom_access_code': null,
-              'classroom_joined_at': null,
-            })
-            .eq('id', user.id);
-      } catch (_) {}
-      if (context.mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _leaving = true);
+    try {
+      await ClassroomService().leaveClassroom();
+      if (!mounted) return;
+      await _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AuthService.getErrorMessage(e))));
+      setState(() => _leaving = false);
+      return;
     }
+    if (mounted) setState(() => _leaving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _profile == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final data = _profile;
+    final classroomId = data?['classroom_id'] as String?;
+    final classroomName = data?['classroom_name'] as String?;
+    final classroomCode = data?['classroom_access_code'] as String?;
+    final inClassroom = classroomId != null && classroomId.isNotEmpty;
+
+    final user = widget.user;
+    final displayName =
+        data?['display_name'] as String? ??
+        user.userMetadata?['full_name'] as String? ??
+        user.userMetadata?['name'] as String? ??
+        user.email ??
+        'Student';
+    final photoUrl =
+        data?['photo_url'] as String? ??
+        user.userMetadata?['avatar_url'] as String?;
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        _AccountCard(
+          displayName: displayName,
+          email: user.email,
+          photoUrl: photoUrl,
+        ),
+        const SizedBox(height: 24),
+        if (_leaving)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (inClassroom)
+          _ClassroomCard(
+            name: classroomName ?? 'Your Classroom',
+            code: classroomCode ?? '',
+            onLeave: _confirmLeave,
+          )
+        else
+          const _JoinClassroomCard(),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              await AppOnboardingStore.reset();
+              if (!context.mounted) return;
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => const AppOnboardingScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.menu_book_outlined),
+            label: const Text('Show app guide again'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              foregroundColor: AppColors.primary,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

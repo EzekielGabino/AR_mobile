@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:scilense_ar_mobile/screens/chemistry_screens/chemistry_hub_screen.dart';
 import 'package:scilense_ar_mobile/screens/main_screen.dart';
+import 'package:scilense_ar_mobile/screens/people%20screens/profile_screen.dart';
 import 'package:scilense_ar_mobile/services/classroom_service.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 
-/// Session + approved classroom (profiles.classroom_id) → MainScreen.
-/// Also watches class_members so approval while on Chemistry Hub / Profile
-/// activates the classroom without requiring the Waiting screen to be open.
+/// Root navigator:
+/// - signed out → [ProfileScreen] (sign in)
+/// - signed in, no classroom → [ProfileScreen] (join / waiting / open hub)
+/// - signed in + approved classroom → [MainScreen]
+///
+/// Chemistry Hub is not the unsigned root. It is only opened while signed in.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -23,7 +26,7 @@ class AuthGate extends StatelessWidget {
         final user = session?.user;
 
         if (user == null) {
-          return const ChemistryHubScreen();
+          return const ProfileScreen();
         }
 
         return _SignedInShell(userId: user.id);
@@ -83,9 +86,7 @@ class _SignedInShellState extends State<_SignedInShell> {
           }
         }
       });
-    } catch (_) {
-      // Polling still runs
-    }
+    } catch (_) {}
   }
 
   Future<void> _checkMembershipOnce() async {
@@ -93,8 +94,6 @@ class _SignedInShellState extends State<_SignedInShell> {
     if (classroomId != null && classroomId.isNotEmpty) return;
     if (_activating) return;
     try {
-      final pending = await ClassroomService().fetchMyPendingMembership();
-      // Also check any approved row even if profile not updated yet
       final rows = await SupabaseService.client
           .from('class_members')
           .select('class_id, status')
@@ -108,8 +107,6 @@ class _SignedInShellState extends State<_SignedInShell> {
           await _activateIfNeeded(classId);
         }
       }
-      // Keep pending reference so UI elsewhere can refresh; no-op here
-      pending;
     } catch (_) {}
   }
 
@@ -157,8 +154,9 @@ class _SignedInShellState extends State<_SignedInShell> {
       );
     }
 
+    // Signed in without classroom stays on Profile (join / waiting / open hub).
     return hasClassroom
         ? MainScreen(classId: classroomId)
-        : const ChemistryHubScreen();
+        : const ProfileScreen();
   }
 }

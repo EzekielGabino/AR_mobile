@@ -43,19 +43,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _error = null;
     });
     try {
-      final list = await _service.listMine();
-      // Opening the alerts screen counts as reading all notifications
+      final list = await _service.listMine(classId: widget.classId);
       final hasUnread = list.any((n) => n['read_at'] == null);
       if (hasUnread) {
         try {
-          await _service.markAllRead();
+          await _service.markAllRead(classId: widget.classId);
           final now = DateTime.now().toUtc().toIso8601String();
           for (final n in list) {
             n['read_at'] ??= now;
           }
-        } catch (_) {
-          // Still show the list even if mark-all fails
-        }
+        } catch (_) {}
       }
       if (!mounted) return;
       setState(() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/components/auth_gate.dart';
+import 'package:scilense_ar_mobile/components/app_onboarding_host.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
 import 'package:scilense_ar_mobile/services/supabase_service.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
@@ -18,10 +19,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ScilensAR',
+      title: 'ScilenseAR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: AuthGate(),
+      home: const AppOnboardingHost(child: AuthGate()),
     );
   }
 }

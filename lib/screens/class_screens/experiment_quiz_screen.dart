@@ -1,8 +1,9 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:scilense_ar_mobile/models/experiment_models.dart';
 import 'package:scilense_ar_mobile/theme/app_theme.dart';
 
-// Design-system palette (file-private so it cannot clash with AppColors in app_theme.dart)
 const Color _royalBlue = Color(0xFF1B2CC1);
 const Color _periwinkle = Color(0xFF7692FF);
 const Color _lightBlue = Color(0xFFABD2FA);
@@ -13,7 +14,7 @@ class ExperimentQuizScreen extends StatefulWidget {
     required this.experiment,
     this.classId,
     this.activityId,
-    /// order → option id (from a previous attempt)
+    /// order / 1-based index → option id (from a previous attempt)
     this.initialAnswers = const {},
   });
 
@@ -27,106 +28,120 @@ class ExperimentQuizScreen extends StatefulWidget {
 }
 
 class _ExperimentQuizScreenState extends State<ExperimentQuizScreen> {
-  /// question **index** → selected option id
+  /// Display index → selected option id
   final Map<int, String> _answersByIndex = {};
+
+  /// Display list (may be shuffled)
+  late List<QuizQuestion> _displayQuestions;
+
+  /// Display index → original question index in experiment.quiz.questions
+  late List<int> _originalIndices;
+
+  late final bool _isReview;
 
   @override
   void initState() {
     super.initState();
+    _isReview = widget.initialAnswers.isNotEmpty;
+    _buildDisplayQuestions();
     _seedFromInitial();
   }
 
-  void _seedFromInitial() {
-    final questions = widget.experiment.quiz.questions;
-    if (widget.initialAnswers.isEmpty || questions.isEmpty) return;
+  void _buildDisplayQuestions() {
+    final source = widget.experiment.quiz.questions;
+    final indices = List<int>.generate(source.length, (i) => i);
+    final rng = Random();
 
-    for (var i = 0; i < questions.length; i++) {
-      final q = questions[i];
-      // Match by order, then by 1-based index fallback
-      final ans = widget.initialAnswers[q.order] ??
-          widget.initialAnswers[i + 1] ??
-          widget.initialAnswers[i];
+    if (!_isReview && indices.length > 1) {
+      indices.shuffle(rng);
+    }
+
+    _originalIndices = indices;
+    _displayQuestions = [
+      for (final i in indices)
+        _withMaybeShuffledOptions(source[i], shuffle: !_isReview, rng: rng),
+    ];
+  }
+
+  QuizQuestion _withMaybeShuffledOptions(
+    QuizQuestion q, {
+    required bool shuffle,
+    required Random rng,
+  }) {
+    final opts = List<QuizOption>.from(q.options);
+    if (shuffle && opts.length > 1) {
+      opts.shuffle(rng);
+    }
+    return QuizQuestion(
+      order: q.order,
+      prompt: q.prompt,
+      options: opts,
+      correctOption: q.correctOption,
+      explanation: q.explanation,
+    );
+  }
+
+  void _seedFromInitial() {
+    if (widget.initialAnswers.isEmpty || _displayQuestions.isEmpty) return;
+
+    for (var displayI = 0; displayI < _displayQuestions.length; displayI++) {
+      final origI = _originalIndices[displayI];
+      final q = _displayQuestions[displayI];
+      final ans = widget.initialAnswers[origI + 1] ??
+          widget.initialAnswers[q.order] ??
+          widget.initialAnswers[origI] ??
+          widget.initialAnswers[displayI + 1];
       if (ans != null && ans.isNotEmpty) {
-        _answersByIndex[i] = ans;
+        _answersByIndex[displayI] = ans;
       }
     }
   }
 
   bool get _allAnswered {
-    final questions = widget.experiment.quiz.questions;
-    if (questions.isEmpty) return false;
-    return questions.asMap().keys.every(_answersByIndex.containsKey);
+    if (_displayQuestions.isEmpty) return false;
+    return _displayQuestions.asMap().keys.every(_answersByIndex.containsKey);
   }
 
   void _submitQuiz() {
     if (!_allAnswered) return;
 
-    final questions = widget.experiment.quiz.questions;
-    // Always key by 1-based index so answers stay aligned with question list
-    // order (web quizzes often leave every question order = 0).
-    final byIndex = <int, String>{};
-    for (var i = 0; i < questions.length; i++) {
-      byIndex[i + 1] = _answersByIndex[i]!;
+    // Key by 1-based **original** question index so scoring stays stable
+    // after shuffle.
+    final byOriginalIndex = <int, String>{};
+    for (var displayI = 0; displayI < _displayQuestions.length; displayI++) {
+      final origI = _originalIndices[displayI];
+      byOriginalIndex[origI + 1] = _answersByIndex[displayI]!;
     }
 
-    Navigator.pop(context, byIndex);
+    Navigator.pop(context, byOriginalIndex);
   }
 
   @override
   Widget build(BuildContext context) {
-    final questions = widget.experiment.quiz.questions;
-    final isReview = widget.initialAnswers.isNotEmpty;
+    final questions = _displayQuestions;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      // AppBar kept exactly as the ORIGINAL (uses the app theme's AppBar style)
       appBar: AppBar(
-        title: Text(isReview ? 'Edit quiz answers' : 'Quiz'),
+        title: Text(_isReview ? 'Review quiz' : 'Lab quiz'),
+        centerTitle: true,
+        backgroundColor: AppColors.primaryDark,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
       ),
       body: questions.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Icon inside a soft light-blue circle (decorative)
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: _lightBlue.withValues(alpha: 0.35),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.quiz_outlined,
-                      size: 40,
-                      color: _periwinkle,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No quiz questions yet.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            )
+          ? const Center(child: Text('No quiz questions for this lab.'))
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               itemCount: questions.length,
               itemBuilder: (context, index) {
                 final q = questions[index];
-                final selectedId = _answersByIndex[index];
-
+                final selected = _answersByIndex[index];
                 return Card(
-                  // Visual only: white card, periwinkle glow, light-blue border, 16 px radius
+                  margin: const EdgeInsets.only(bottom: 14),
                   color: Colors.white,
-                  elevation: 4,
-                  shadowColor: _periwinkle.withValues(alpha: 0.30),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  elevation: 3,
+                  shadowColor: _periwinkle.withValues(alpha: 0.28),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
@@ -139,62 +154,81 @@ class _ExperimentQuizScreenState extends State<ExperimentQuizScreen> {
                         Text(
                           'Question ${index + 1}',
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                             color: _royalBlue,
-                            letterSpacing: 0.3,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           q.prompt,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            height: 1.4,
                             color: AppColors.textPrimary,
+                            height: 1.35,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         ...q.options.map((opt) {
-                          // Visual only (read-only): highlights the chosen option
-                          final bool isSelected = selectedId == opt.id;
+                          final isSelected = selected == opt.id;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: RadioListTile<String>(
-                              key: ValueKey('q${index}_${opt.id}'),
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              activeColor: _royalBlue,
-                              tileColor: isSelected
-                                  ? _lightBlue.withValues(alpha: 0.35)
-                                  : Colors.white,
-                              shape: RoundedRectangleBorder(
+                            child: Material(
+                              color: isSelected
+                                  ? _lightBlue.withValues(alpha: 0.45)
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? _royalBlue
-                                      : _lightBlue.withValues(alpha: 0.8),
-                                  width: isSelected ? 1.5 : 1,
+                                onTap: () {
+                                  setState(() {
+                                    _answersByIndex[index] = opt.id;
+                                  });
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? _royalBlue
+                                          : _periwinkle.withValues(alpha: 0.35),
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isSelected
+                                            ? Icons.radio_button_checked
+                                            : Icons.radio_button_off,
+                                        size: 20,
+                                        color: isSelected
+                                            ? _royalBlue
+                                            : AppColors.textSecondary,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          opt.text,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              title: Text(
-                                '${opt.id.toUpperCase()}. ${opt.text}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              value: opt.id,
-                              groupValue: selectedId,
-                              onChanged: (value) {
-                                if (value == null) return;
-                                setState(() {
-                                  _answersByIndex[index] = value;
-                                });
-                              },
                             ),
                           );
                         }),
@@ -206,106 +240,24 @@ class _ExperimentQuizScreenState extends State<ExperimentQuizScreen> {
             ),
       bottomNavigationBar: questions.isEmpty
           ? null
-          : Container(
-              // Visual only: white bar with a light-blue top border and soft shadow
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: _lightBlue.withValues(alpha: 0.7)),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: _periwinkle.withValues(alpha: 0.18),
-                    blurRadius: 16,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Progress bar (decorative, only reads _answersByIndex.length)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: LinearProgressIndicator(
-                                value: _answersByIndex.length / questions.length,
-                                minHeight: 8,
-                                color: _periwinkle,
-                                backgroundColor:
-                                    _lightBlue.withValues(alpha: 0.45),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${_answersByIndex.length}/${questions.length}',
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _royalBlue,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        // Gradient shows only while the button is enabled
-                        child: Container(
-                          decoration: _allAnswered
-                              ? BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [_royalBlue, _periwinkle],
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _royalBlue.withValues(alpha: 0.30),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                )
-                              : null,
-                          child: ElevatedButton(
-                            onPressed: _allAnswered ? _submitQuiz : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              disabledBackgroundColor:
-                                  _lightBlue.withValues(alpha: 0.5),
-                              foregroundColor: Colors.white,
-                              disabledForegroundColor:
-                                  AppColors.textSecondary,
-                              shadowColor: Colors.transparent,
-                              elevation: 0,
-                              minimumSize: const Size.fromHeight(56),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              textStyle: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            child: Text(
-                              _allAnswered
-                                  ? (isReview ? 'Save answers' : 'Submit Quiz')
-                                  : 'Answer all '
-                                      '(${_answersByIndex.length}/${questions.length})',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _allAnswered ? _submitQuiz : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _royalBlue,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          _periwinkle.withValues(alpha: 0.35),
+                    ),
+                    child: Text(
+                      _isReview ? 'Save answers' : 'Done',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
               ),

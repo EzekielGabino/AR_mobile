@@ -86,6 +86,46 @@ class ActivitySubmissionService {
     );
   }
 
+  /// True when every approved class member has status returned.
+  Future<bool> allStudentsReturned({
+    required String activityId,
+    required String classId,
+  }) async {
+    try {
+      final members = await _client
+          .from('class_members')
+          .select('user_id')
+          .eq('class_id', classId)
+          .eq('status', 'approved');
+      final memberIds = <String>{};
+      for (final r in (members as List)) {
+        final id = (r as Map)['user_id']?.toString();
+        if (id != null && id.isNotEmpty) memberIds.add(id);
+      }
+      if (memberIds.isEmpty) return false;
+
+      final rows = await _client
+          .from('activity_submissions')
+          .select('student_id, status')
+          .eq('activity_id', activityId)
+          .eq('class_id', classId);
+
+      final returned = <String>{};
+      for (final r in (rows as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        final sid = m['student_id']?.toString();
+        final status = (m['status']?.toString() ?? '').toLowerCase();
+        if (sid == null || sid.isEmpty) continue;
+        if (status == 'returned') {
+          returned.add(sid);
+        }
+      }
+      return memberIds.every(returned.contains);
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// True when every approved class member has a non-draft submission.
   Future<bool> allStudentsSubmitted({
     required String activityId,

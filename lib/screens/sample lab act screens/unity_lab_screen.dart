@@ -18,6 +18,16 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
   bool _sent = false;
   bool _leaving = false;
   bool _showDistanceGuide = false;
+  bool _unityReady = false;
+  bool _waitingCamera = false;
+
+  void _markReady() {
+    if (_unityReady || !mounted) return;
+    setState(() {
+      _unityReady = true;
+      _waitingCamera = false;
+    });
+  }
 
   void _sendActivity({bool force = false}) {
     if (_sent && !force) return;
@@ -151,14 +161,15 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Unity often stays alive after pop — scene_loaded will NOT fire again.
-      // Always push this screen's activity after a short delay so lab B replaces lab A.
       Future.delayed(const Duration(milliseconds: 400), () {
         if (!mounted) return;
         try {
           sendToUnity('FlutterLabBridge', 'SetPracticeMode', 'true');
         } catch (_) {}
         _sendActivity(force: true);
+      });
+      Future.delayed(const Duration(seconds: 20), () {
+        if (mounted && !_unityReady) _markReady();
       });
     });
   }
@@ -192,9 +203,24 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
                   _showRemovedTipDialog();
                 }
 
-                if (lower == 'scene_loaded') {
+                if (lower.contains('camera') &&
+                    (lower.contains('permission') ||
+                        lower.contains('request') ||
+                        lower.contains('denied'))) {
+                  if (mounted) {
+                    setState(() {
+                      _waitingCamera = true;
+                      _unityReady = false;
+                    });
+                  }
+                }
+
+                if (lower == 'scene_loaded' ||
+                    lower == 'unity_ready' ||
+                    lower == 'ar_ready') {
                   sendToUnity('FlutterLabBridge', 'SetPracticeMode', 'true');
                   _sendActivity(force: true);
+                  _markReady();
                 }
                 if (lower.contains('experiment complete') ||
                     lower.contains('experiment_complete')) {
@@ -203,8 +229,45 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
               },
             ),
 
-            // Distance guidance while placing an apparatus
             if (_showDistanceGuide) const _DistanceGuideOverlay(),
+
+            if (!_unityReady)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.92),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: Colors.white),
+                        const SizedBox(height: 20),
+                        Text(
+                          _waitingCamera
+                              ? 'Waiting for camera permission…'
+                              : 'Loading lab…',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _waitingCamera
+                              ? 'Allow camera access when prompted, then wait for AR to start.'
+                              : 'Preparing AR. This may take a few seconds.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             Positioned(
               top: top + 8,
@@ -220,32 +283,33 @@ class _UnityLabScreenState extends State<UnityLabScreen> {
               ),
             ),
 
-            Positioned(
-              top: top + 8,
-              right: 8,
-              child: Material(
-                color: Colors.black54,
-                shape: const CircleBorder(),
-                child: IconButton(
-                  icon: const Icon(Icons.restart_alt, color: Colors.white),
-                  tooltip: 'Reset lab',
-                  onPressed: _resetLab,
+            if (_unityReady) ...[
+              Positioned(
+                top: top + 8,
+                right: 8,
+                child: Material(
+                  color: Colors.black54,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    icon: const Icon(Icons.restart_alt, color: Colors.white),
+                    tooltip: 'Reset lab',
+                    onPressed: _resetLab,
+                  ),
                 ),
               ),
-            ),
-
-            Positioned(
-              top: top + 8,
-              right: 60,
-              child: Material(
-                color: Colors.black54,
-                shape: const CircleBorder(),
-                child: IconButton(
-                  onPressed: _openInfo,
-                  icon: const Icon(Icons.info),
+              Positioned(
+                top: top + 8,
+                right: 60,
+                child: Material(
+                  color: Colors.black54,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    onPressed: _openInfo,
+                    icon: const Icon(Icons.info, color: Colors.white),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
