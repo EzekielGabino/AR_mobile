@@ -26,18 +26,23 @@ class PendingApprovalScreen extends StatefulWidget {
 
 class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   StreamSubscription? _sub;
+  Timer? _poll;
   bool _cancelling = false;
+  bool _handling = false;
   String? _statusMessage;
 
   @override
   void initState() {
     super.initState();
     _listen();
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _checkOnce());
+    _checkOnce();
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _poll?.cancel();
     super.dispose();
   }
 
@@ -61,7 +66,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
       if (mine == null || !mounted) return;
       final status = mine['status'] as String? ?? '';
       if (status == 'approved') {
-        await _onApproved();
+        if (!_handling) await _onApproved();
       } else if (status == 'rejected') {
         setState(() {
           _statusMessage =
@@ -71,7 +76,26 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
     });
   }
 
+  Future<void> _checkOnce() async {
+    if (_handling || !mounted) return;
+    try {
+      final row = await ClassroomService().fetchMyMembership(widget.classId);
+      if (row == null || !mounted) return;
+      final status = (row['status'] as String?)?.toLowerCase() ?? '';
+      if (status == 'approved') {
+        await _onApproved();
+      } else if (status == 'rejected') {
+        setState(() {
+          _statusMessage =
+              'Your request was declined. You can cancel and try another code.';
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _onApproved() async {
+    if (_handling) return;
+    _handling = true;
     final rows = await SupabaseService.client
         .from('classes')
         .select('id, section_name, grade_level, subject, access_code, teacher_id')
@@ -95,6 +119,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
       MaterialPageRoute(builder: (_) => const AuthGate()),
       (_) => false,
     );
+    _handling = false;
   }
 
   Future<void> _cancel() async {

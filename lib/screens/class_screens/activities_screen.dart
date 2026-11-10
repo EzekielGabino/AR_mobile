@@ -411,6 +411,8 @@ class _ActivityList extends StatelessWidget {
         // Visual only (read-only): used to pick the icon/color of the date line
         final bool isSubmitted =
             submissionsById?[data['id'] as String?] != null;
+        final bool isPastDue =
+            !isSubmitted && _isPastDue(data['dueDate'], data['dueTime']);
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -471,6 +473,28 @@ class _ActivityList extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        if (isPastDue) ...[
+                          const SizedBox(width: 6),
+                          Chip(
+                            label: const Text('Past due'),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: const Color(0xFFFFEBEE),
+                            side: const BorderSide(color: Color(0xFFEF9A9A)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            avatar: const Icon(
+                              Icons.warning_amber_rounded,
+                              size: 16,
+                              color: Color(0xFFC62828),
+                            ),
+                            labelStyle: const TextStyle(
+                              color: Color(0xFFC62828),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -510,19 +534,31 @@ class _ActivityList extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.schedule_rounded,
+                        Icon(
+                          isPastDue
+                              ? Icons.event_busy_rounded
+                              : Icons.schedule_rounded,
                           size: 16,
-                          color: _periwinkle,
+                          color: isPastDue
+                              ? const Color(0xFFC62828)
+                              : _periwinkle,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Deadline: ${_formatDeadline(data['dueDate'], data['dueTime'])}',
+                            isPastDue
+                                ? 'Past due: ${_formatDeadline(data['dueDate'], data['dueTime'])}'
+                                : 'Deadline: ${_formatDeadline(data['dueDate'], data['dueTime'])}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Theme.of(context).colorScheme.onSurface
-                                  .withValues(alpha: 0.65),
+                              fontWeight:
+                                  isPastDue ? FontWeight.w700 : FontWeight.w400,
+                              color: isPastDue
+                                  ? const Color(0xFFC62828)
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.65),
                             ),
                           ),
                         ),
@@ -577,4 +613,24 @@ String _formatDeadline(dynamic dueDate, dynamic dueTime) {
   final time = dueTime?.toString() ?? '';
   if (time.isEmpty) return datePart;
   return '$datePart · $time';
+}
+
+bool _isPastDue(dynamic dueDate, dynamic dueTime) {
+  if (dueDate == null || dueDate.toString().isEmpty) return false;
+  try {
+    final raw = dueDate.toString().trim();
+    final d = raw.length >= 10 ? raw.substring(0, 10) : raw;
+    var t = (dueTime?.toString() ?? '').trim();
+    if (t.isEmpty) {
+      t = '23:59:59';
+    } else if (RegExp(r'^\d{1,2}:\d{2}$').hasMatch(t)) {
+      t = '$t:00';
+    } else if (t.length >= 8) {
+      t = t.substring(0, 8);
+    }
+    final when = DateTime.parse('${d}T$t');
+    return when.isBefore(DateTime.now());
+  } catch (_) {
+    return false;
+  }
 }

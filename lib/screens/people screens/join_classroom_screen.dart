@@ -228,7 +228,8 @@ class _JoinClassroomScreenState extends State<JoinClassroomScreen> {
 
     _isScanning = false;
     await cameraController.stop();
-    await _join(code);
+    final normalized = ClassroomService.normalizeAccessCode(code);
+    await _join(normalized.isEmpty ? code : normalized);
   }
 
   Future<void> _join(String code) async {

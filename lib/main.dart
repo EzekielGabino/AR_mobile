@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ScilenseAR',
+      title: 'ScilensAR',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: AuthGate(),

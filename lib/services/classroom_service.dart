@@ -45,6 +45,36 @@ class ClassroomService {
 
   dynamic get _client => SupabaseService.client;
 
+  /// Accepts raw codes or QR payloads like https://host/join/ABC123.
+  static String normalizeAccessCode(String raw) {
+    var s = raw.trim();
+    if (s.isEmpty) return '';
+    final uri = Uri.tryParse(s);
+    if (uri != null && (uri.hasScheme || s.contains('/join/'))) {
+      final segments = uri.pathSegments.where((e) => e.isNotEmpty).toList();
+      final joinIdx = segments.indexWhere((e) => e.toLowerCase() == 'join');
+      if (joinIdx >= 0 && joinIdx + 1 < segments.length) {
+        s = segments[joinIdx + 1];
+      } else if (uri.queryParameters['code'] != null) {
+        s = uri.queryParameters['code']!;
+      } else if (uri.queryParameters['access_code'] != null) {
+        s = uri.queryParameters['access_code']!;
+      } else {
+        final joinAt = s.toLowerCase().lastIndexOf('/join/');
+        if (joinAt >= 0) {
+          s = s.substring(joinAt + 6).split(RegExp(r'[?#/]')).first;
+        }
+      }
+    }
+    s = s.trim().toUpperCase();
+    final match = RegExp(r'[A-Z0-9]{4,12}').firstMatch(s);
+    if (match != null &&
+        (s.length > 12 || s.contains('HTTP') || s.contains(' '))) {
+      return match.group(0)!;
+    }
+    return s.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+  }
+
   /// Call after profile classroom fields change so AuthGate rebuilds.
   void notifyProfileChanged() {
     if (!_profileTicks.isClosed) {
@@ -84,7 +114,7 @@ class ClassroomService {
       );
     }
 
-    final code = rawCode.trim().toUpperCase();
+    final code = normalizeAccessCode(rawCode);
     if (code.isEmpty) {
       throw ClassroomJoinException('Enter or scan a class code first.');
     }

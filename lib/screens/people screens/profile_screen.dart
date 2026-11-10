@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:scilense_ar_mobile/components/auth_gate.dart';
 import 'package:scilense_ar_mobile/screens/people%20screens/join_classroom_screen.dart';
 import 'package:scilense_ar_mobile/screens/people%20screens/pending_approval_screen.dart';
 import 'package:scilense_ar_mobile/services/auth_service.dart';
@@ -24,7 +27,8 @@ class ProfileScreen extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: SupabaseService.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        final user = snapshot.data?.session?.user ??
+        final user =
+            snapshot.data?.session?.user ??
             AuthService().currentUser ??
             SupabaseService.client.auth.currentUser;
 
@@ -45,9 +49,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           body: user != null
               ? _SignedInBody(user: user)
-              : _SignedOutBody(
-                  onSignIn: () => _handleGoogleSignIn(context),
-                ),
+              : _SignedOutBody(onSignIn: () => _handleGoogleSignIn(context)),
         );
       },
     );
@@ -65,9 +67,9 @@ class ProfileScreen extends StatelessWidget {
       );
     } catch (e) {
       if (!ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text(AuthService.getErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        ctx,
+      ).showSnackBar(SnackBar(content: Text(AuthService.getErrorMessage(e))));
     }
   }
 
@@ -77,9 +79,7 @@ class ProfileScreen extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         // Visual only: white dialog, 16 px radius, navy title
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Sign out?',
           style: TextStyle(
@@ -117,9 +117,9 @@ class ProfileScreen extends StatelessWidget {
       await AuthService().signOut();
     } catch (e) {
       if (!ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text(AuthService.getErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        ctx,
+      ).showSnackBar(SnackBar(content: Text(AuthService.getErrorMessage(e))));
     }
   }
 }
@@ -165,10 +165,7 @@ class _GradientButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -219,7 +216,7 @@ class _SignedOutBody extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               const Text(
-                'ScilenseAR',
+                'ScilensAR',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
@@ -268,12 +265,14 @@ class _SignedInBody extends StatelessWidget {
         final classroomCode = data?['classroom_access_code'] as String?;
         final inClassroom = classroomId != null && classroomId.isNotEmpty;
 
-        final displayName = data?['display_name'] as String? ??
+        final displayName =
+            data?['display_name'] as String? ??
             user.userMetadata?['full_name'] as String? ??
             user.userMetadata?['name'] as String? ??
             user.email ??
             'Student';
-        final photoUrl = data?['photo_url'] as String? ??
+        final photoUrl =
+            data?['photo_url'] as String? ??
             user.userMetadata?['avatar_url'] as String?;
 
         return ListView(
@@ -318,9 +317,7 @@ class _SignedInBody extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         // Visual only: white dialog, 16 px radius, navy title
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Leave classroom?',
           style: TextStyle(
@@ -358,12 +355,15 @@ class _SignedInBody extends StatelessWidget {
         await ClassroomService().leaveClassroom();
       } catch (_) {}
       try {
-        await SupabaseService.client.from('profiles').update({
-          'classroom_id': null,
-          'classroom_name': null,
-          'classroom_access_code': null,
-          'classroom_joined_at': null,
-        }).eq('id', user.id);
+        await SupabaseService.client
+            .from('profiles')
+            .update({
+              'classroom_id': null,
+              'classroom_name': null,
+              'classroom_access_code': null,
+              'classroom_joined_at': null,
+            })
+            .eq('id', user.id);
       } catch (_) {}
       if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
@@ -377,11 +377,7 @@ class _AccountCard extends StatelessWidget {
   final String? email;
   final String? photoUrl;
 
-  const _AccountCard({
-    required this.displayName,
-    this.email,
-    this.photoUrl,
-  });
+  const _AccountCard({required this.displayName, this.email, this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -412,8 +408,9 @@ class _AccountCard extends StatelessWidget {
               child: CircleAvatar(
                 radius: 28,
                 backgroundColor: _lightBlue.withValues(alpha: 0.35),
-                backgroundImage:
-                    photoUrl != null ? NetworkImage(photoUrl!) : null,
+                backgroundImage: photoUrl != null
+                    ? NetworkImage(photoUrl!)
+                    : null,
                 child: photoUrl == null
                     ? const Icon(Icons.person, color: _royalBlue, size: 28)
                     : null,
@@ -450,141 +447,226 @@ class _AccountCard extends StatelessWidget {
   }
 }
 
-class _JoinClassroomCard extends StatelessWidget {
+class _JoinClassroomCard extends StatefulWidget {
   const _JoinClassroomCard();
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: ClassroomService().fetchMyPendingMembership(),
-      builder: (context, snap) {
-        final pending = snap.data;
-        final hasPending = pending != null;
-        String? classId;
-        String? section;
-        String? code;
-        if (hasPending) {
-          classId = pending['class_id'] as String?;
-          final classes = pending['classes'];
-          if (classes is Map) {
-            section = classes['section_name'] as String?;
-            code = classes['access_code'] as String?;
+  State<_JoinClassroomCard> createState() => _JoinClassroomCardState();
+}
+
+class _JoinClassroomCardState extends State<_JoinClassroomCard> {
+  Map<String, dynamic>? _pending;
+  bool _loading = true;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    _poll = Timer.periodic(const Duration(seconds: 4), (_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final pending = await ClassroomService().fetchMyPendingMembership();
+      // Approved while sitting on profile (no classroom on profile yet)
+      final user = AuthService().currentUser;
+      if (user != null) {
+        final rows = await SupabaseService.client
+            .from('class_members')
+            .select('class_id, status')
+            .eq('user_id', user.id)
+            .eq('status', 'approved')
+            .limit(1);
+        final list = rows as List;
+        if (list.isNotEmpty) {
+          final classId = (list.first as Map)['class_id']?.toString();
+          if (classId != null && classId.isNotEmpty && mounted) {
+            await _activateAndGo(classId);
+            return;
           }
         }
+      }
+      if (!mounted) return;
+      setState(() {
+        _pending = pending;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: AppColors.headerGradient,
-            borderRadius: BorderRadius.circular(16),
-            // Soft glow under the panel
-            boxShadow: [
-              BoxShadow(
-                color: _periwinkle.withValues(alpha: 0.30),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icon chip (decorative)
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: _lightBlue.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Icon(
-                  hasPending ? Icons.hourglass_top : Icons.qr_code_scanner,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                hasPending ? 'Join request pending' : 'Join Your Classroom',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                hasPending
-                    ? 'Your teacher has not approved this class yet. You can open the waiting screen anytime.'
-                    : "Scan your teacher's QR code or enter the class code to "
-                        'unlock experiments, quizzes, and equipment tracking.',
-                style: const TextStyle(
-                  color: _lightBlue,
-                  fontSize: 13,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (hasPending && classId != null && classId.isNotEmpty) {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PendingApprovalScreen(
-                            classId: classId!,
-                            sectionName: section,
-                            accessCode: code,
-                          ),
-                        ),
-                      );
-                      // Rebuild card after returning (cancel / still pending)
-                      if (context.mounted) {
-                        (context as Element).markNeedsBuild();
-                      }
-                      return;
-                    }
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const JoinClassroomScreen(),
-                      ),
-                    );
-                    if (context.mounted) {
-                      (context as Element).markNeedsBuild();
-                    }
-                  },
-                  icon: Icon(hasPending ? Icons.hourglass_top : Icons.login),
-                  label: Text(
-                    hasPending ? 'View waiting status' : 'Join with code or QR',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.primaryDark,
-                    elevation: 0,
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+  Future<void> _activateAndGo(String classId) async {
+    try {
+      final rows = await SupabaseService.client
+          .from('classes')
+          .select(
+            'id, section_name, grade_level, subject, access_code, teacher_id',
+          )
+          .eq('id', classId)
+          .limit(1);
+      final list = rows as List;
+      if (list.isEmpty) return;
+      final row = Map<String, dynamic>.from(list.first as Map);
+      final info = ClassroomInfo(
+        id: row['id'] as String,
+        sectionName: row['section_name'] as String? ?? '',
+        gradeLevel: row['grade_level'] as String? ?? '',
+        subject: row['subject'] as String? ?? '',
+        accessCode: row['access_code'] as String? ?? '',
+        teacherUid: row['teacher_id'] as String? ?? '',
+        membershipStatus: 'approved',
+      );
+      await ClassroomService().activateApprovedClassroom(info);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+        (_) => false,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _openWaitingOrJoin() async {
+    final pending = _pending;
+    if (pending != null) {
+      final classId = pending['class_id'] as String?;
+      String? section;
+      String? code;
+      final classes = pending['classes'];
+      if (classes is Map) {
+        section = classes['section_name'] as String?;
+        code = classes['access_code'] as String?;
+      }
+      if (classId != null && classId.isNotEmpty) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PendingApprovalScreen(
+              classId: classId,
+              sectionName: section,
+              accessCode: code,
+            ),
           ),
         );
-      },
+        await _refresh();
+        return;
+      }
+    }
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const JoinClassroomScreen()));
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPending = _pending != null;
+    String? section;
+    String? code;
+    if (hasPending) {
+      final classes = _pending!['classes'];
+      if (classes is Map) {
+        section = classes['section_name'] as String?;
+        code = classes['access_code'] as String?;
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: AppColors.headerGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _periwinkle.withValues(alpha: 0.30),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _lightBlue.withValues(alpha: 0.5)),
+            ),
+            child: Icon(
+              hasPending ? Icons.hourglass_top : Icons.qr_code_scanner,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            hasPending ? 'Waiting for approval' : 'Join a classroom',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasPending
+                ? 'Your request${section != null && section.isNotEmpty ? ' for "$section"' : ''} is pending. Open status to wait, or stay here — this screen updates when your teacher approves.'
+                : 'Scan your teacher\'s QR code or enter the class access code.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          if (hasPending && (code?.isNotEmpty ?? false)) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Code: $code',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _loading ? null : _openWaitingOrJoin,
+              icon: Icon(hasPending ? Icons.hourglass_top : Icons.login),
+              label: Text(
+                hasPending ? 'View waiting status' : 'Join with code or QR',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primaryDark,
+                elevation: 0,
+                minimumSize: const Size.fromHeight(56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
-
 
 class _ClassroomCard extends StatelessWidget {
   final String name;
@@ -649,10 +731,7 @@ class _ClassroomCard extends StatelessWidget {
               const SizedBox(height: 8),
               // Monospace code on a light-blue chip
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _lightBlue.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(8),
